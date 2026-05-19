@@ -13,7 +13,8 @@ app.post('/api/search', async (req, res) => {
   }
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    // Step 1: Haiku sucht im Web (Freitext)
+    const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -23,38 +24,66 @@ app.post('/api/search', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du bist ein Vertriebsrecherche-Assistent fuer MYWORKSPACE by Lyreco (360-Grad-Bueroloesungen Deutschland).
-Deine Antwort besteht AUSSCHLIESSLICH aus einem JSON-Array. Kein Text davor oder danach. Kein Markdown. Nur das Array.
-Wenn du keine Firmen findest, gib ein leeres Array zurueck: []
-Niemals Jobportale (StepStone, Indeed), Netzwerke (LinkedIn) oder Kammern (IHK) als Leads aufnehmen.`,
         messages: [{
           role: 'user',
-          content: `Heute ist Mai 2026. Suche nach echten inhabergefuehrten Mittelstaendlern im Umkreis ${radius}km um ${location} Deutschland.
-
-Suche nach:
-- Unternehmen die 2024-2026 expandiert haben oder wachsen
-- Firmen in Branchen mit aktuellem Boersenrueckenwind (Technologie, Verteidigung, Energie, Gesundheit)
-- Kanzleien, Agenturen, Beratungen, IT-Firmen, Ingenieurbüros, Pflegefachschulen, Bildungstraeger
-
-Fuer jede Firma: suche mehrere Belege (Presseartikel, Unternehmenswebseite, Handelsregister) und den Namen des GF/Inhabers.
-
-Erklaere bei "warumJetzt" ausfuehrlich warum diese Firma im Mai 2026 investitionsbereit ist: Branchenrueckenwind, wirtschaftliche Lage der Firma, konkrete Signale.
-
-Antworte NUR mit diesem JSON-Array:
-[{"name":"Firmenname","branche":"Branche","ort":"Stadt","prioritaet":"Hoch oder Mittel","triggersignale":[{"beschreibung":"Konkretes Signal mit Details","quelleUrl":"https://quelleurl.de"},{"beschreibung":"Weiteres Signal","quelleUrl":"https://quelleurl2.de"}],"warumJetzt":"Ausfuehrliche Begruendung warum Mai 2026 der richtige Zeitpunkt ist. Branchenrueckenwind benennen. Wirtschaftliche Lage erklaeren. Mindestens 3 Saetze.","branchenrueckenwind":"Welcher Sektor boomt und wie profitiert diese Firma","ansprechpartner":[{"name":"Name GF/Inhaber","funktion":"Inhaber oder GF","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]`
+          content: `Suche nach Unternehmen die 2024-2026 in ${location} expandiert haben oder gewachsen sind. Nenne konkrete Firmennamen, Ort, was du gefunden hast und die URL. Maximal 6 Firmen.`
         }]
       })
     });
 
-    const data = await resp.json();
-    if (data.error) return res.json({ error: data.error });
+    const searchData = await searchResp.json();
+    if (searchData.error) return res.json({ error: searchData.error });
 
-    const rawText = (data.content || [])
+    const blockTypes = (searchData.content || []).map(b => b.type);
+    const rawText = (searchData.content || [])
+      .filter(b => b.type === 'text').map(b => b.text).join('\n');
+
+    if (!rawText || rawText.length < 50) {
+      return res.json({
+        error: { message: 'Keine Suchergebnisse.' },
+        _debug: { blockTypes, rawTextLength: rawText.length, preview: rawText.substring(0, 200) }
+      });
+    }
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    // Step 2: Haiku formatiert als JSON
+    const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 3000,
+        system: 'Antworte NUR mit einem JSON-Array. Kein Text. Kein Markdown. Beginne sofort mit [',
+        messages: [{
+          role: 'user',
+          content: `Wandle diese Firmenliste in JSON um:\n\n${rawText.substring(0, 2000)}\n\n[{"name":"...","branche":"...","ort":"...","prioritaet":"Hoch","triggersignale":[{"beschreibung":"...","quelleUrl":"https://..."}],"warumJetzt":"Warum ist diese Firma im Mai 2026 ein guter Lead fuer Bueroausstattung? 3 Saetze.","branchenrueckenwind":"...","ansprechpartner":[{"name":"nicht oeffentlich","funktion":"GF","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]`
+        }]
+      })
+    });
+
+    const formatData = await formatResp.json();
+    if (formatData.error) return res.json({ error: formatData.error });
+
+    const jsonText = (formatData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('');
 
-    return res.json({ _jsonText: rawText });
+    return res.json({
+      _jsonText: jsonText,
+      _debug: {
+        step1Blocks: blockTypes,
+        step1Length: rawText.length,
+        step1Preview: rawText.substring(0, 400),
+        step2Length: jsonText.length,
+        step2Preview: jsonText.substring(0, 200)
+      }
+    });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
