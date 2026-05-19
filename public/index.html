@@ -324,7 +324,9 @@ async function doSearch() {
     if (!leads.length) {
       stopProgress(false);
       st.className = 'status err';
-      st.textContent = 'Keine Ergebnisse. Bitte erneut versuchen.';
+      st.textContent = 'Keine Ergebnisse.';
+      var d = data._debug || {};
+      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;overflow-x:auto;">Blocks: '+JSON.stringify(d.step1Blocks)+'\nStep1 ('+d.step1Length+' Zeichen):\n'+(d.step1Preview||'').replace(/</g,'&lt;')+'\n\nStep2 ('+d.step2Length+' Zeichen):\n'+(d.step2Preview||'').replace(/</g,'&lt;')+'</pre>';
       btn.disabled = false; return;
     }
 
