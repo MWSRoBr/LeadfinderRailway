@@ -13,17 +13,11 @@
     --text-muted: #a09b93; --blue: #2a4a7f; --green: #2a6b45; --green-ok: #1e7a3e;
   }
   body { font-family: 'Calibri Light', Calibri, system-ui, sans-serif; background: var(--white); color: var(--text); min-height: 100vh; }
-
-  /* Header */
   .hdr { background: var(--black); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
   .hdr h1 { font-family: 'EB Garamond', serif; font-size: 20px; font-weight: 500; letter-spacing: 0.06em; color: #fff; }
   .hdr-right { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #555; }
-
-  /* Layout */
   .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
   .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; align-items: stretch; }
-
-  /* Panels */
   .panel { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 24px; }
   .panel-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 18px; }
   label.lbl { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-mid); margin-bottom: 5px; }
@@ -36,51 +30,32 @@
   .btn-clear-key:hover { color: #999; }
   .key-saved { font-size: 10px; color: var(--text-muted); margin-top: 3px; font-style: italic; }
   hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
-
-  /* Search button */
   .btn-search { width: 100%; padding: 12px; background: var(--black); color: #fff; border: 2px solid var(--black); border-radius: 6px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
   .btn-search:hover { background: #000; }
   .btn-search:disabled { background: #bbb; border-color: #bbb; cursor: not-allowed; }
-
-  /* Progress / Spinner */
   .progress-wrap { margin-top: 14px; display: none; }
   .progress-wrap.active { display: block; }
   .spinner-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .spinner {
-    width: 20px; height: 20px; flex-shrink: 0;
-    border: 2.5px solid #ddd;
-    border-top-color: var(--black);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
+  .spinner { width: 20px; height: 20px; flex-shrink: 0; border: 2.5px solid #ddd; border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .progress-label { font-size: 13px; color: var(--text-mid); font-style: italic; }
   .progress-bar-track { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
   .progress-bar-fill { height: 100%; background: var(--black); border-radius: 2px; transition: width 0.6s ease; width: 0%; }
-
   .status { font-size: 12px; color: var(--text-mid); margin-top: 8px; min-height: 18px; }
   .status.err { color: #b22222; font-style: normal; font-weight: 600; }
   .status.ok { color: var(--green-ok); font-style: normal; font-weight: 600; }
-
-  /* Info panel */
   .info-panel { background: var(--black); border-radius: 8px; padding: 24px; }
   .info-panel h3 { font-family: 'EB Garamond', serif; font-size: 20px; font-weight: 500; color: #fff; margin-bottom: 14px; }
   .info-panel p { font-size: 13px; line-height: 1.7; color: #b0aba3; margin-bottom: 12px; }
   .info-sep { border: none; border-top: 1px solid #222; margin: 14px 0; }
   .info-sub { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #555; margin-bottom: 7px; }
   .tag { display: inline-block; background: #1e1e1c; color: #b0aba3; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; margin: 2px; }
-
-  /* Disclaimer */
   .disclaimer { background: #fffbe6; border: 1.5px solid #e8c840; border-left: 4px solid #c8a800; border-radius: 8px; padding: 16px 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.7; color: #5a4a00; }
   .disclaimer strong { color: #3a3000; }
-
-  /* Results */
   .results-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1.5px solid var(--border); margin-bottom: 20px; }
   .results-count { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
   .btn-pdf { padding: 8px 18px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 5px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
   .btn-pdf:hover { background: var(--black); color: #fff; }
-
-  /* Cards */
   .card { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 22px; margin-bottom: 14px; border-left: 4px solid var(--black); }
   .card.prio-mittel { border-left-color: #ccc; }
   .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
@@ -92,19 +67,20 @@
   .badge-hoch { background: var(--black); color: #fff; }
   .badge-mittel { background: #eee; color: #666; }
   .slbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 14px 0 5px; }
-  .trigger { background: var(--bg); border-left: 3px solid var(--black); border-radius: 0 5px 5px 0; padding: 10px 14px; font-size: 13px; line-height: 1.55; }
-  .trigger-src { font-size: 11px; margin-top: 5px; color: var(--text-muted); }
-  .trigger-src a { color: var(--text-mid); word-break: break-all; }
-  .warum { background: #eef2fa; border-left: 3px solid var(--blue); border-radius: 0 5px 5px 0; padding: 10px 14px; font-size: 13px; line-height: 1.55; color: #1a2e50; }
-  .contacts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 5px; }
+  .trigger-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .trigger-item { background: var(--bg); border-left: 3px solid var(--black); border-radius: 0 5px 5px 0; padding: 9px 13px; font-size: 13px; line-height: 1.5; }
+  .trigger-item.mittel { border-left-color: #ccc; }
+  .trigger-src { font-size: 11px; margin-top: 4px; color: var(--text-muted); }
+  .trigger-src a { color: var(--text-mid); word-break: break-all; text-decoration: underline; }
+  .warum { background: #eef2fa; border-left: 3px solid var(--blue); border-radius: 0 5px 5px 0; padding: 12px 16px; font-size: 13px; line-height: 1.7; color: #1a2e50; margin-top: 4px; }
+  .rueckenwind { background: #eef6f0; border-left: 3px solid var(--green); border-radius: 0 5px 5px 0; padding: 10px 14px; font-size: 13px; line-height: 1.55; color: #1a3d2a; margin-top: 4px; }
+  .contacts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
   .contact-item { background: var(--bg); border-radius: 5px; padding: 9px 14px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
   .clbl { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
   .cval { font-size: 12px; font-weight: 600; color: var(--text); word-break: break-all; }
   .cval a { color: var(--text); text-decoration: none; }
   .cval a:hover { text-decoration: underline; }
   .cmuted { font-size: 12px; color: #ccc; font-style: italic; }
-  .pitch { background: #fffef5; border: 1px solid #e0d890; border-radius: 6px; padding: 12px 16px; font-family: 'EB Garamond', serif; font-size: 15px; line-height: 1.6; color: var(--text-mid); font-style: italic; margin-top: 5px; }
-
   @media print {
     .hdr, .top-row, .disclaimer, .results-bar { display: none !important; }
     .page { padding: 0; max-width: 100%; }
@@ -125,7 +101,6 @@
 
 <div class="page">
   <div class="top-row">
-
     <div class="panel">
       <div class="panel-title">Suchparameter</div>
       <div class="field">
@@ -152,7 +127,6 @@
         <div class="key-saved" id="keysaved"></div>
       </div>
       <button class="btn-search" id="searchbtn" onclick="doSearch()">Vertriebszeitpunkte finden</button>
-
       <div class="progress-wrap" id="progressWrap">
         <div class="spinner-row">
           <div class="spinner"></div>
@@ -162,35 +136,35 @@
           <div class="progress-bar-fill" id="progressBar"></div>
         </div>
       </div>
-
       <div class="status" id="status"></div>
     </div>
 
     <div class="info-panel">
       <h3>Was macht dieses Tool?</h3>
-      <p>Der Lead-Finder sucht gezielt nach Unternehmen, die sich gerade veraendern – und deshalb bald Bueros einrichten, umbauen oder erweitern werden.</p>
-      <p>Nicht wer generell interessant ist, sondern wer <strong style="color:#fff">jetzt gerade im richtigen Moment</strong> ist: kurz bevor die Einrichtungsentscheidung faellt.</p>
+      <p>Der Lead-Finder identifiziert Unternehmen in deiner Region bei denen wirtschaftlicher Rueckenwind und konkrete Veraenderungssignale zusammentreffen.</p>
+      <p>Nicht wer generell interessant ist, sondern wer <strong style="color:#fff">jetzt die Mittel und den Anlass hat</strong> in eine neue Arbeitsumgebung zu investieren.</p>
+      <div class="info-sep"></div>
+      <div class="info-sub">Boersenanalyse</div>
+      <span class="tag">DAX / MDAX / SDAX</span>
+      <span class="tag">TecDAX</span>
+      <span class="tag">Scale / Basic Board</span>
+      <span class="tag">ifo / ZEW</span>
+      <span class="tag">KfW / BAFA</span>
+      <div class="info-sep"></div>
+      <div class="info-sub">Triggersignale</div>
+      <span class="tag">Expansion</span>
+      <span class="tag">Neue Standorte</span>
+      <span class="tag">Wachstum</span>
+      <span class="tag">Stellenanzeigen</span>
       <div class="info-sep"></div>
       <div class="info-sub">Zielgruppe</div>
-      <p>Inhabergefuehrte Mittelstaendler – kurze Entscheidungswege, der Inhaber entscheidet selbst.</p>
-      <div class="info-sep"></div>
-      <div class="info-sub">Quellen</div>
-      <span class="tag">Web-Suche</span>
-      <span class="tag">Pressemeldungen</span>
-      <span class="tag">Unternehmenswebseiten</span>
-      <span class="tag">Wirtschaftsnachrichten</span>
-      <div class="info-sep"></div>
-      <div class="info-sub">Branchen</div>
-      <p style="margin-bottom:6px">Klassisch: Kanzleien, Agenturen, Beratungen, Finanzdienstleister.</p>
-      <p>Hidden Gems: Pflegefachschulen, Bildungstraeger, Sozialdienste, Ingenieurbüros.</p>
+      <p>Inhabergefuehrte Mittelstaendler 100–500 MA. Kanzleien, Agenturen, Beratungen, IT, Ingenieurbüros, Bildungstraeger, Sozialdienste.</p>
     </div>
-
   </div>
 
   <div class="disclaimer">
     &#9888;&nbsp;<strong>KI-generierte Ergebnisse &ndash; zur eigenen Einschaetzung.</strong>
-    Diese Liste wird automatisch per KI-Websuche erstellt und kann Fehler, veraltete Angaben oder Ungenauigkeiten enthalten.
-    Bitte alle Quellen selbst pruefen und die Ergebnisse als Ideengrundlage verstehen &ndash; nicht als verifizierten Kundenauftrag.
+    Diese Liste wird automatisch per KI-Websuche erstellt und kann Fehler oder Ungenauigkeiten enthalten. Bitte alle Quellen selbst pruefen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.
   </div>
 
   <div id="results"></div>
@@ -220,44 +194,36 @@ function startProgress() {
   var label = document.getElementById('progressLabel');
   wrap.classList.add('active');
   bar.style.width = '0%';
-
   var steps = [
-    { pct: 15, text: 'Verbinde mit KI...' },
-    { pct: 30, text: 'Suche laeuft – Pressemeldungen werden analysiert...' },
-    { pct: 50, text: 'Wachstumssignale werden ausgewertet...' },
-    { pct: 70, text: 'Ansprechpartner werden recherchiert...' },
-    { pct: 85, text: 'Ergebnisse werden aufbereitet...' },
+    { pct: 10, text: 'Boersen- und Branchenanalyse laeuft...' },
+    { pct: 25, text: 'DAX / TecDAX / ifo-Index werden ausgewertet...' },
+    { pct: 42, text: 'Regionale Unternehmen werden recherchiert...' },
+    { pct: 58, text: 'Triggersignale und Quellen werden geprueft...' },
+    { pct: 72, text: 'Ansprechpartner werden gesucht...' },
+    { pct: 88, text: 'Ergebnisse werden aufbereitet...' },
     { pct: 95, text: 'Fast fertig...' }
   ];
   var i = 0;
-
   progressInterval = setInterval(function() {
-    if (i < steps.length) {
-      bar.style.width = steps[i].pct + '%';
-      label.textContent = steps[i].text;
-      i++;
-    }
-  }, 5000);
+    if (i < steps.length) { bar.style.width = steps[i].pct + '%'; label.textContent = steps[i].text; i++; }
+  }, 6000);
 }
 
-function stopProgress(success) {
+function stopProgress(ok) {
   clearInterval(progressInterval);
   var wrap = document.getElementById('progressWrap');
   var bar = document.getElementById('progressBar');
-  bar.style.width = success ? '100%' : '0%';
+  bar.style.width = ok ? '100%' : '0%';
   setTimeout(function(){ wrap.classList.remove('active'); }, 600);
 }
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function fmtSrc(src) {
-  if (!src) return '<span class="cmuted">–</span>';
-  var s = String(src).trim();
-  if (s.indexOf('http') === 0) {
-    try { var u = new URL(s); var p = u.pathname.length>45?u.pathname.substring(0,45)+'...':u.pathname; return '<a href="'+esc(s)+'" target="_blank" rel="noopener">'+esc(u.hostname+p)+'</a>'; }
-    catch(e) { return '<a href="'+esc(s)+'" target="_blank">'+esc(s)+'</a>'; }
-  }
-  return esc(s);
+function fmtUrl(url) {
+  if (!url) return null;
+  var s = String(url).trim();
+  if (s.indexOf('http') === 0) return s;
+  return null;
 }
 
 function isNA(v) { if (!v) return true; var x = String(v).toLowerCase().trim(); return !x||x==='nicht oeffentlich'||x==='nicht öffentlich'||x==='unbekannt'||x==='n/a'||x==='-'||x==='keine angabe'; }
@@ -269,6 +235,17 @@ function extractLeads(raw) {
   if (m) { try { var l = JSON.parse(m[0]); if (Array.isArray(l) && l.length) return l; } catch(e) {} }
   try { var p = JSON.parse(text); if (Array.isArray(p) && p.length) return p; } catch(e) {}
   return [];
+}
+
+function renderTriggers(triggers) {
+  if (!triggers || !triggers.length) return '';
+  return triggers.map(function(t, i) {
+    var url = fmtUrl(t.quelleUrl);
+    var srcHtml = url
+      ? '<div class="trigger-src">Quelle: <a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>'
+      : '';
+    return '<div class="trigger-item'+(i>0?' mittel':'')+'">'+esc(t.beschreibung||t)+srcHtml+'</div>';
+  }).join('');
 }
 
 function renderContact(c) {
@@ -285,7 +262,15 @@ function renderLeads(leads) {
   var bar = '<div class="results-bar"><div class="results-count">'+sorted.length+' Lead'+(sorted.length!==1?'s':'')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
   var cards = sorted.map(function(l) {
     var prio = (l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
-    var warum = l.warumJetzt ? '<div class="slbl">Warum jetzt</div><div class="warum">'+esc(l.warumJetzt)+'</div>' : '';
+
+    // Trigger signals
+    var triggers = l.triggersignale || [];
+    if (!triggers.length && l.trigger) triggers = [{ beschreibung: l.trigger, quelleUrl: l.triggerQuelle }];
+    var triggersHtml = triggers.length ? '<div class="slbl">Trigger-Signale</div><div class="trigger-list">'+renderTriggers(triggers)+'</div>' : '';
+
+    var warumHtml = l.warumJetzt ? '<div class="slbl">Warum jetzt – Mai 2026</div><div class="warum">'+esc(l.warumJetzt)+'</div>' : '';
+    var rueckenwindHtml = l.branchenrueckenwind ? '<div class="slbl">Branchenrueckenwind</div><div class="rueckenwind">'+esc(l.branchenrueckenwind)+'</div>' : '';
+
     var contacts = [];
     if (Array.isArray(l.ansprechpartner)) contacts = l.ansprechpartner;
     else if (l.ansprechpartner && typeof l.ansprechpartner==='object') contacts = [l.ansprechpartner];
@@ -293,11 +278,10 @@ function renderLeads(leads) {
     var contactsHtml = contacts.length
       ? '<div class="slbl">Ansprechpartner</div><div class="contacts-list">'+contacts.map(renderContact).join('')+'</div>'
       : '<div class="slbl">Ansprechpartner</div><div class="contacts-list"><div class="contact-item" style="grid-template-columns:1fr"><div><div class="clbl">Hinweis</div><div class="cval" style="font-weight:400;color:var(--text-muted)">Recherche ueber LinkedIn, Impressum oder Handelsregister empfohlen</div></div></div></div>';
+
     return '<div class="card prio-'+prio+'">'
       +'<div class="card-head"><div><div class="card-name">'+esc(l.name)+'</div><div class="card-branch">'+esc(l.branche)+'</div></div><div class="card-right"><div class="card-ort">'+esc(l.ort)+'</div><span class="badge badge-'+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
-      +'<div class="slbl">Trigger-Signal</div><div class="trigger">'+esc(l.trigger)+'<div class="trigger-src">Quelle: '+fmtSrc(l.triggerQuelle)+'</div></div>'
-      +warum+contactsHtml
-      +'<div class="slbl">Erstansprache</div><div class="pitch">&ldquo;'+esc(l.erstansprache)+'&rdquo;</div>'
+      +triggersHtml+warumHtml+rueckenwindHtml+contactsHtml
       +'</div>';
   }).join('');
   el.innerHTML = bar + cards;
