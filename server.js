@@ -82,9 +82,9 @@ app.post('/api/search', async (req, res) => {
 
     // SCHRITT 2: Lead-Suche – Sonnet mit Web-Suche, mehrere Staedte + Signaltypen
     const suchbegriffe = staedte.slice(0, 3).flatMap(s => [
-      `"${s}" Unternehmen neues Buero Expansion 2025 2026`,
-      `"${s}" GmbH Startup Finanzierung Wachstum 2025`,
-      `"${s}" Firma Umzug neue Raeume Mitarbeiter 2025`
+      `"${s}" Unternehmen expandiert neues Buero 2024 2025 2026`,
+      `"${s}" GmbH Finanzierung Wachstum Mitarbeiter 2025`,
+      `"${s}" Firma neuer Standort zieht um 2025 2026`
     ]).slice(0, 6).join('\n- ');
 
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -148,12 +148,10 @@ Fuer jeden Fund: Name, Ort, was gefunden, URL, GF/Inhaber falls im Impressum auf
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
         system: `Gib NUR ein JSON-Objekt zurueck. Beginne mit {
-STRIKTE REGELN:
-- Nur inhabergefuehrte Mittelstaendler mit 100-500 Mitarbeitern
-- NIEMALS aufnehmen: DAX/MDAX/SDAX-Konzerne, boersennotierte Unternehmen, Konzerne mit 1000+ MA (z.B. Continental, Volkswagen, TUI, Deutsche Messe, Siemens, Deutsche Telekom, Lufthansa etc.)
-- NIEMALS: Burovermietungen, Coworking-Anbieter, Jobportale, Kammern, Verbände
-- NIEMALS: "Keine Daten", "N/A", Phantomeintraege
-- Wenn keine passenden Firmen gefunden: "leads": []`,
+Nur echte Firmen als Leads. NICHT aufnehmen: StepStone, Indeed, LinkedIn, IHK, Kammern, Jobportale, Burovermietungen, Coworking-Anbieter.
+NICHT aufnehmen: boersennotierte Konzerne oder Firmen mit 500+ Mitarbeitern (z.B. Continental, VW, TUI, Deutsche Messe, Siemens, Hannover Rueck, Talanx, Allianz, BMW, BASF, Bayer).
+Nur GmbH oder kleine inhabergefuehrte Unternehmen.
+Wenn keine passenden Firmen: "leads": []`,
         messages: [{
           role: 'user',
           content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0,4000)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[/* bis zu 10 echte Firmen */{"name":"Echter Firmenname","branche":"...","ort":"...","prioritaet":"Hoch/Mittel","triggersignale":[{"beschreibung":"Konkretes Signal","quelleUrl":"https://..."}],"warumJetzt":"Warum ist diese Firma in ${dates.today} investitionsbereit? 3-4 Saetze mit Branchenrueckenwind.","branchenrueckenwind":"...","ansprechpartner":[{"name":"Name falls bekannt sonst nicht oeffentlich","funktion":"GF/Inhaber","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]}`
