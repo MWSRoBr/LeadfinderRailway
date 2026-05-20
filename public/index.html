@@ -381,8 +381,13 @@ async function doSearch() {
       renderLeads(leads);
     } else {
       st.className = 'status err';
-      st.textContent = 'Branchenanalyse abgeschlossen – keine Leads gefunden. Rohtext:';
-      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;color:#333;max-height:300px;overflow-y:auto;">'+(data._jsonText||'leer').substring(0,800).replace(/</g,'&lt;')+'</pre>';
+      st.textContent = 'Keine Leads gefunden.';
+      var d = data._debug || {};
+      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;color:#333;max-height:400px;overflow-y:auto;">'
+        + 'SCHRITT 1 ('+d.step1Length+' Zeichen):\n' + (d.step1Preview||'').replace(/</g,'&lt;') + '\n\n'
+        + 'SCHRITT 2 Blocks: ' + JSON.stringify(d.step2Blocks) + ' ('+d.step2Length+' Zeichen):\n' + (d.step2Preview||'').replace(/</g,'&lt;') + '\n\n'
+        + 'SCHRITT 3 ('+d.step3Length+' Zeichen):\n' + (d.step3Preview||'').replace(/</g,'&lt;')
+        + '</pre>';
     }
 
   } catch(err) {
