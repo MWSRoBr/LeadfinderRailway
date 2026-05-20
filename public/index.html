@@ -52,6 +52,23 @@
   .tag { display: inline-block; background: #1e1e1c; color: #b0aba3; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; margin: 2px; }
   .disclaimer { background: #fffbe6; border: 1.5px solid #e8c840; border-left: 4px solid #c8a800; border-radius: 8px; padding: 16px 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.7; color: #5a4a00; }
   .disclaimer strong { color: #3a3000; }
+
+  /* Branchenanalyse Panel */
+  .branchen-panel { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+  .branchen-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  .branchen-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+  .branchen-periode { font-size: 11px; color: var(--text-muted); font-style: italic; }
+  .branchen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .branche-item { background: var(--bg); border-radius: 6px; padding: 14px 16px; border-left: 3px solid var(--black); }
+  .branche-item.moderat { border-left-color: #CED994; }
+  .branche-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .branche-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .branche-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; }
+  .badge-stark { background: var(--black); color: #fff; }
+  .badge-moderat { background: #e8e4dc; color: #555; }
+  .branche-begruendung { font-size: 12px; line-height: 1.6; color: var(--text-mid); }
+
+  /* Results */
   .results-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1.5px solid var(--border); margin-bottom: 20px; }
   .results-count { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
   .btn-pdf { padding: 8px 18px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 5px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
@@ -69,7 +86,6 @@
   .slbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 14px 0 5px; }
   .trigger-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
   .trigger-item { background: var(--bg); border-left: 3px solid var(--black); border-radius: 0 5px 5px 0; padding: 9px 13px; font-size: 13px; line-height: 1.5; }
-  .trigger-item.mittel { border-left-color: #ccc; }
   .trigger-src { font-size: 11px; margin-top: 4px; color: var(--text-muted); }
   .trigger-src a { color: var(--text-mid); word-break: break-all; text-decoration: underline; }
   .warum { background: #eef2fa; border-left: 3px solid var(--blue); border-radius: 0 5px 5px 0; padding: 12px 16px; font-size: 13px; line-height: 1.7; color: #1a2e50; margin-top: 4px; }
@@ -85,10 +101,12 @@
     .hdr, .top-row, .disclaimer, .results-bar { display: none !important; }
     .page { padding: 0; max-width: 100%; }
     .card { break-inside: avoid; border: 1px solid #ccc !important; margin-bottom: 10px; }
+    .branchen-panel { break-inside: avoid; }
   }
   @media (max-width: 780px) {
     .top-row { grid-template-columns: 1fr; }
     .contact-item { grid-template-columns: 1fr 1fr; }
+    .branchen-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -96,7 +114,7 @@
 
 <div class="hdr">
   <h1>MYWORKSPACE &mdash; Lead-Finder</h1>
-  <div class="hdr-right">Aussendienst-Tool &nbsp; v5.0</div>
+  <div class="hdr-right">Aussendienst-Tool &nbsp; v6.0</div>
 </div>
 
 <div class="page">
@@ -126,11 +144,11 @@
         </div>
         <div class="key-saved" id="keysaved"></div>
       </div>
-      <button class="btn-search" id="searchbtn" onclick="doSearch()">Vertriebszeitpunkte finden</button>
+      <button class="btn-search" id="searchbtn" onclick="doSearch()">Region analysieren</button>
       <div class="progress-wrap" id="progressWrap">
         <div class="spinner-row">
           <div class="spinner"></div>
-          <div class="progress-label" id="progressLabel">Suche laeuft...</div>
+          <div class="progress-label" id="progressLabel">Analyse laeuft...</div>
         </div>
         <div class="progress-bar-track">
           <div class="progress-bar-fill" id="progressBar"></div>
@@ -141,24 +159,20 @@
 
     <div class="info-panel">
       <h3>Was macht dieses Tool?</h3>
-      <p>Der Lead-Finder identifiziert Unternehmen in deiner Region bei denen wirtschaftlicher Rueckenwind und konkrete Veraenderungssignale zusammentreffen.</p>
-      <p>Nicht wer generell interessant ist, sondern wer <strong style="color:#fff">jetzt die Mittel und den Anlass hat</strong> in eine neue Arbeitsumgebung zu investieren.</p>
+      <p>Der Lead-Finder analysiert Branchen mit aktuellem wirtschaftlichem Rueckenwind und identifiziert Unternehmen in deiner Region bei denen Investitionsbereitschaft und Veraenderungsdruck zusammentreffen.</p>
+      <p>Nicht wer generell interessant ist, sondern wer <strong style="color:#fff">heute die Mittel und den Anlass hat</strong> in eine neue Arbeitsumgebung zu investieren.</p>
       <div class="info-sep"></div>
-      <div class="info-sub">Boersenanalyse</div>
-      <span class="tag">DAX / MDAX / SDAX</span>
-      <span class="tag">TecDAX</span>
-      <span class="tag">Scale / Basic Board</span>
+      <div class="info-sub">Analysezeitraum</div>
+      <p>Dynamisch: immer die letzten 12 Monate ab heute.</p>
+      <div class="info-sep"></div>
+      <div class="info-sub">Datenquellen</div>
+      <span class="tag">DAX / TecDAX / SDAX</span>
       <span class="tag">ifo / ZEW</span>
       <span class="tag">KfW / BAFA</span>
-      <div class="info-sep"></div>
-      <div class="info-sub">Triggersignale</div>
-      <span class="tag">Expansion</span>
-      <span class="tag">Neue Standorte</span>
-      <span class="tag">Wachstum</span>
-      <span class="tag">Stellenanzeigen</span>
+      <span class="tag">Presse & Handelsregister</span>
       <div class="info-sep"></div>
       <div class="info-sub">Zielgruppe</div>
-      <p>Inhabergefuehrte Mittelstaendler 100–500 MA. Kanzleien, Agenturen, Beratungen, IT, Ingenieurbüros, Bildungstraeger, Sozialdienste.</p>
+      <p>Unternehmen bei denen mindestens 30–40% der Mitarbeiter an Bueroplaetzen arbeiten – egal ob klassische Buerobranche oder unerwarteter Sektor.</p>
     </div>
   </div>
 
@@ -167,6 +181,7 @@
     Diese Liste wird automatisch per KI-Websuche erstellt und kann Fehler oder Ungenauigkeiten enthalten. Bitte alle Quellen selbst pruefen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.
   </div>
 
+  <div id="branchen-container"></div>
   <div id="results"></div>
 </div>
 
@@ -195,18 +210,18 @@ function startProgress() {
   wrap.classList.add('active');
   bar.style.width = '0%';
   var steps = [
-    { pct: 10, text: 'Boersen- und Branchenanalyse laeuft...' },
-    { pct: 25, text: 'DAX / TecDAX / ifo-Index werden ausgewertet...' },
-    { pct: 42, text: 'Regionale Unternehmen werden recherchiert...' },
-    { pct: 58, text: 'Triggersignale und Quellen werden geprueft...' },
-    { pct: 72, text: 'Ansprechpartner werden gesucht...' },
-    { pct: 88, text: 'Ergebnisse werden aufbereitet...' },
-    { pct: 95, text: 'Fast fertig...' }
+    { pct: 12, text: 'Boersen- und Konjunkturdaten werden analysiert...' },
+    { pct: 28, text: 'Regionale Branchenstaerken werden ermittelt...' },
+    { pct: 45, text: 'Unternehmen in der Region werden recherchiert...' },
+    { pct: 62, text: 'Triggersignale und Quellen werden geprueft...' },
+    { pct: 78, text: 'Investitionsbereitschaft wird bewertet...' },
+    { pct: 90, text: 'Ergebnisse werden aufbereitet...' },
+    { pct: 96, text: 'Fast fertig...' }
   ];
   var i = 0;
   progressInterval = setInterval(function() {
     if (i < steps.length) { bar.style.width = steps[i].pct + '%'; label.textContent = steps[i].text; i++; }
-  }, 6000);
+  }, 8000);
 }
 
 function stopProgress(ok) {
@@ -222,29 +237,50 @@ function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').repl
 function fmtUrl(url) {
   if (!url) return null;
   var s = String(url).trim();
-  if (s.indexOf('http') === 0) return s;
-  return null;
+  return s.indexOf('http') === 0 ? s : null;
 }
 
 function isNA(v) { if (!v) return true; var x = String(v).toLowerCase().trim(); return !x||x==='nicht oeffentlich'||x==='nicht öffentlich'||x==='unbekannt'||x==='n/a'||x==='-'||x==='keine angabe'; }
 
-function extractLeads(raw) {
-  if (!raw) return [];
+function extractData(raw) {
+  if (!raw) return null;
   var text = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-  var m = text.match(/\[[\s\S]*\]/);
-  if (m) { try { var l = JSON.parse(m[0]); if (Array.isArray(l) && l.length) return l; } catch(e) {} }
-  try { var p = JSON.parse(text); if (Array.isArray(p) && p.length) return p; } catch(e) {}
-  return [];
+  var m = text.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch(e) {} }
+  return null;
+}
+
+function renderBranchen(branchen, dateRange) {
+  if (!branchen || !branchen.length) return;
+  var el = document.getElementById('branchen-container');
+  var items = branchen.map(function(b) {
+    var stark = (b.staerke||'').toLowerCase() === 'stark';
+    return '<div class="branche-item'+(stark?'':' moderat')+'">'
+      +'<div class="branche-top">'
+      +'<div class="branche-name">'+esc(b.name)+'</div>'
+      +'<span class="branche-badge '+(stark?'badge-stark':'badge-moderat')+'">'+esc(b.staerke||'moderat')+'</span>'
+      +'</div>'
+      +'<div class="branche-begruendung">'+esc(b.begruendung)+'</div>'
+      +'</div>';
+  }).join('');
+
+  el.innerHTML = '<div class="branchen-panel">'
+    +'<div class="branchen-header">'
+    +'<div class="branchen-title">Regionale Branchenanalyse</div>'
+    +'<div class="branchen-periode">'+esc(dateRange||'Letzte 12 Monate')+'</div>'
+    +'</div>'
+    +'<div class="branchen-grid">'+items+'</div>'
+    +'</div>';
 }
 
 function renderTriggers(triggers) {
   if (!triggers || !triggers.length) return '';
-  return triggers.map(function(t, i) {
+  return triggers.map(function(t) {
     var url = fmtUrl(t.quelleUrl);
     var srcHtml = url
       ? '<div class="trigger-src">Quelle: <a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>'
       : '';
-    return '<div class="trigger-item'+(i>0?' mittel':'')+'">'+esc(t.beschreibung||t)+srcHtml+'</div>';
+    return '<div class="trigger-item">'+esc(t.beschreibung||t)+srcHtml+'</div>';
   }).join('');
 }
 
@@ -262,15 +298,11 @@ function renderLeads(leads) {
   var bar = '<div class="results-bar"><div class="results-count">'+sorted.length+' Lead'+(sorted.length!==1?'s':'')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
   var cards = sorted.map(function(l) {
     var prio = (l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
-
-    // Trigger signals
     var triggers = l.triggersignale || [];
     if (!triggers.length && l.trigger) triggers = [{ beschreibung: l.trigger, quelleUrl: l.triggerQuelle }];
     var triggersHtml = triggers.length ? '<div class="slbl">Trigger-Signale</div><div class="trigger-list">'+renderTriggers(triggers)+'</div>' : '';
-
-    var warumHtml = l.warumJetzt ? '<div class="slbl">Warum jetzt – Mai 2026</div><div class="warum">'+esc(l.warumJetzt)+'</div>' : '';
+    var warumHtml = l.warumJetzt ? '<div class="slbl">Warum jetzt</div><div class="warum">'+esc(l.warumJetzt)+'</div>' : '';
     var rueckenwindHtml = l.branchenrueckenwind ? '<div class="slbl">Branchenrueckenwind</div><div class="rueckenwind">'+esc(l.branchenrueckenwind)+'</div>' : '';
-
     var contacts = [];
     if (Array.isArray(l.ansprechpartner)) contacts = l.ansprechpartner;
     else if (l.ansprechpartner && typeof l.ansprechpartner==='object') contacts = [l.ansprechpartner];
@@ -278,7 +310,6 @@ function renderLeads(leads) {
     var contactsHtml = contacts.length
       ? '<div class="slbl">Ansprechpartner</div><div class="contacts-list">'+contacts.map(renderContact).join('')+'</div>'
       : '<div class="slbl">Ansprechpartner</div><div class="contacts-list"><div class="contact-item" style="grid-template-columns:1fr"><div><div class="clbl">Hinweis</div><div class="cval" style="font-weight:400;color:var(--text-muted)">Recherche ueber LinkedIn, Impressum oder Handelsregister empfohlen</div></div></div></div>';
-
     return '<div class="card prio-'+prio+'">'
       +'<div class="card-head"><div><div class="card-name">'+esc(l.name)+'</div><div class="card-branch">'+esc(l.branche)+'</div></div><div class="card-right"><div class="card-ort">'+esc(l.ort)+'</div><span class="badge badge-'+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
       +triggersHtml+warumHtml+rueckenwindHtml+contactsHtml
@@ -298,6 +329,7 @@ async function doSearch() {
   var btn = document.getElementById('searchbtn');
   var st = document.getElementById('status');
   document.getElementById('results').innerHTML = '';
+  document.getElementById('branchen-container').innerHTML = '';
   btn.disabled = true;
   st.className = 'status';
   st.textContent = '';
@@ -319,22 +351,31 @@ async function doSearch() {
       btn.disabled = false; return;
     }
 
-    var leads = extractLeads(data._jsonText);
+    var parsed = extractData(data._jsonText);
 
-    if (!leads.length) {
+    if (!parsed || (!parsed.leads && !parsed.branchen)) {
       stopProgress(false);
       st.className = 'status err';
-      st.textContent = 'Keine Ergebnisse.';
-      var d = data._debug || {};
-      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;overflow-x:auto;">Blocks: '+JSON.stringify(d.step1Blocks)+'\nStep1 ('+d.step1Length+' Zeichen):\n'+(d.step1Preview||'').replace(/</g,'&lt;')+'\n\nStep2 ('+d.step2Length+' Zeichen):\n'+(d.step2Preview||'').replace(/</g,'&lt;')+'</pre>';
+      st.textContent = 'Keine Ergebnisse. Bitte erneut versuchen.';
       btn.disabled = false; return;
     }
 
+    var branchen = parsed.branchen || [];
+    var leads = parsed.leads || [];
+
     stopProgress(true);
-    var hochCount = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; }).length;
-    st.className = 'status ok';
-    st.textContent = leads.length+' Lead'+(leads.length!==1?'s':'')+' gefunden – '+hochCount+' mit hoher Prioritaet.';
-    renderLeads(leads);
+
+    if (branchen.length) renderBranchen(branchen, data._dateRange);
+
+    if (leads.length) {
+      var hochCount = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; }).length;
+      st.className = 'status ok';
+      st.textContent = leads.length+' Lead'+(leads.length!==1?'s':'')+' gefunden – '+hochCount+' mit hoher Prioritaet.';
+      renderLeads(leads);
+    } else {
+      st.className = 'status';
+      st.textContent = 'Branchenanalyse abgeschlossen. Keine konkreten Leads gefunden.';
+    }
 
   } catch(err) {
     stopProgress(false);
