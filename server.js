@@ -224,8 +224,7 @@ Antworte strukturiert mit klaren Abschnitten.`
     }
 
     const text = (data.content || [])
-      .filter(b => b.type === 'text').map(b => b.text).join('
-');
+      .filter(b => b.type === 'text').map(b => b.text).join('\n');
 
     return res.json({ _text: text });
 
