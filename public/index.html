@@ -333,7 +333,8 @@ function renderLeads(leads) {
   var hoch = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; });
   var sorted = hoch.concat(leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()!=='hoch'; }));
   var bar = '<div class="results-bar"><div class="results-count">'+sorted.length+' Lead'+(sorted.length!==1?'s':'')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
-  var cards = sorted.map(function(l) {
+  window._leads = sorted;
+  var cards = sorted.map(function(l, idx) {
     var prio = (l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
     var triggers = l.triggersignale || [];
     if (!triggers.length && l.trigger) triggers = [{ beschreibung: l.trigger, quelleUrl: l.triggerQuelle }];
@@ -351,7 +352,7 @@ function renderLeads(leads) {
       +'<div class="card-head"><div><div class="card-name">'+esc(l.name)+'</div><div class="card-branch">'+esc(l.branche)+'</div></div><div class="card-right"><div class="card-ort">'+esc(l.ort)+'</div><span class="badge badge-'+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
       +triggersHtml+warumHtml+rueckenwindHtml+contactsHtml
       +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'
-      +'<button class="btn-info" onclick="openModal(this)" data-name="'+esc(l.name)+'" data-ort="'+esc(l.ort)+'" data-branche="'+esc(l.branche)+'">&#8599; Firmenprofil recherchieren</button>'
+      +'<button class="btn-info" onclick="openModal('+idx+')">&#8599;&nbsp; Firmenprofil recherchieren</button>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -437,9 +438,9 @@ async function doSearch() {
   }
   btn.disabled = false;
 
-function openModal(btn) {
-  var data = { name: btn.getAttribute('data-name'), ort: btn.getAttribute('data-ort'), branche: btn.getAttribute('data-branche') };
-  document.getElementById('modalTitle').textContent = data.name + ' – Firmenprofil';
+function openModal(idx) {
+  var data = window._leads[idx] || {};
+  document.getElementById('modalTitle').textContent = (data.name||'Firma') + ' – Firmenprofil';
   document.getElementById('modalBody').innerHTML = '<div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert – bitte 20-30 Sekunden warten...</div>';
   document.getElementById('modalOverlay').classList.add('active');
   var apiKey = document.getElementById('apikey').value.trim();
