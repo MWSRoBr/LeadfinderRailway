@@ -172,7 +172,7 @@
       <span class="tag">Presse & Handelsregister</span>
       <div class="info-sep"></div>
       <div class="info-sub">Zielgruppe</div>
-      <p>Unternehmen bei denen mindestens 30–40% der Mitarbeiter an Bueroplaetzen arbeiten – egal ob klassische Buerobranche oder unerwarteter Sektor.</p>
+      <p>Inhabergefuehrte Mittelstaendler mit 100–500 Mitarbeitern, bei denen mindestens 30–40% der Belegschaft an Bueroplaetzen arbeiten – egal ob klassische Buerobranche oder unerwarteter Sektor.</p>
     </div>
   </div>
 
@@ -357,6 +357,8 @@ async function doSearch() {
       stopProgress(false);
       st.className = 'status err';
       st.textContent = 'Keine Ergebnisse. Bitte erneut versuchen.';
+      var rawPreview = (data._jsonText||'').substring(0,500);
+      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;color:#333;">Raw JSON Text (erste 500 Zeichen):\n'+rawPreview.replace(/</g,'&lt;')+'</pre>';
       btn.disabled = false; return;
     }
 
