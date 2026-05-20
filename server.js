@@ -89,14 +89,23 @@ Mindestens 3 echte Firmennamen. Falls eine Suche keine Firmen bringt, probiere a
       return res.json({ error: searchData.error });
     }
 
-    // Extrahiere Text aus allen Block-Typen (text + tool_result)
+    // Extrahiere Text aus allen Block-Typen
     const rawText = (searchData.content || []).map(b => {
       if (b.type === 'text') return b.text || '';
+      // Web-Such-Ergebnisse kommen als web_search_tool_result
+      if (b.type === 'web_search_tool_result') {
+        return (b.content || []).map(c => {
+          if (typeof c === 'string') return c;
+          if (c.type === 'document') return (c.document || {}).text || '';
+          if (c.type === 'text') return c.text || '';
+          return JSON.stringify(c).substring(0, 500);
+        }).join('\n');
+      }
       if (b.type === 'tool_result') {
         return (b.content || []).map(c => c.text || '').join('\n');
       }
       return '';
-    }).join('\n').substring(0, 5000);
+    }).filter(Boolean).join('\n').substring(0, 5000);
 
     if (!rawText || rawText.length < 50) {
       return res.json({ error: { message: 'Keine Suchergebnisse. Bitte erneut versuchen.' } });
