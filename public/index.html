@@ -456,11 +456,7 @@ function openModal(idx) {
       document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">'+esc(msg)+'</p>';
       return;
     }
-    var text = (d._text || '').replace(/
-## /g, '
-<h2>').replace(/
-### /g, '
-<h2>').replace(/##/g,'</h2>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    var text = (d._text || '').replace(/\n## /g, '<h2>').replace(/\n### /g, '<h2>').replace(/##/g, '</h2>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     document.getElementById('modalBody').innerHTML = '<div class="modal-content">'+text+'</div>';
   }).catch(function(err) {
     document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">Fehler: '+esc(err.message)+'</p>';
