@@ -97,7 +97,7 @@ app.post('/api/search', async (req, res) => {
         system: `Du hast ein Live-Web-Such-Tool. Dein Trainingsstichtag ist IRRELEVANT – du kannst JETZT aktuelle Webseiten durchsuchen. Fuehre alle Suchen aktiv durch und liste echte Firmennamen.`,
         messages: [{
           role: 'user',
-          content: `Fuehre diese Web-Suchen durch und liste ALLE echten Firmennamen die du findest:\n- ${suchbegriffe}\n\nZiel: mindestens 8-10 verschiedene echte Firmennamen. Falls eine Suche wenig bringt, variiere die Begriffe und suche weiter. Fuer jeden Firmennamen: Name, Ort, was du gefunden hast, URL. Suche danach das Impressum der Firma fuer GF/Inhaber-Name. Nur echte Firmen – keine Portale, Kammern oder Netzwerke.`
+          content: `Fuehre diese Web-Suchen durch und liste ALLE echten Firmennamen die du findest:\n- ${suchbegriffe}\n\nZiel: 8-10 INHABERGEFUEHRTE MITTELSTAENDLER (100-500 MA). KEINE Konzerne, KEINE DAX-Unternehmen, KEINE boersennotierten Firmen. Nur GmbH, GmbH & Co. KG oder kleine AGs mit inhabergefuehrter Struktur. Fuer jeden Firmennamen: Name, Ort, was du gefunden hast, URL. Suche danach das Impressum fuer GF/Inhaber-Name.`
         }]
       })
     });
@@ -143,8 +143,12 @@ app.post('/api/search', async (req, res) => {
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
         system: `Gib NUR ein JSON-Objekt zurueck. Beginne mit {
-STRIKTE REGEL: Nur echte Unternehmen. NIEMALS: "Keine Daten", "N/A", Burovermietungen, Coworking-Anbieter, Kammern, Jobportale.
-Wenn keine echten Firmen: "leads": []`,
+STRIKTE REGELN:
+- Nur inhabergefuehrte Mittelstaendler mit 100-500 Mitarbeitern
+- NIEMALS aufnehmen: DAX/MDAX/SDAX-Konzerne, boersennotierte Unternehmen, Konzerne mit 1000+ MA (z.B. Continental, Volkswagen, TUI, Deutsche Messe, Siemens, Deutsche Telekom, Lufthansa etc.)
+- NIEMALS: Burovermietungen, Coworking-Anbieter, Jobportale, Kammern, Verbände
+- NIEMALS: "Keine Daten", "N/A", Phantomeintraege
+- Wenn keine passenden Firmen gefunden: "leads": []`,
         messages: [{
           role: 'user',
           content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0,4000)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[/* bis zu 10 echte Firmen */{"name":"Echter Firmenname","branche":"...","ort":"...","prioritaet":"Hoch/Mittel","triggersignale":[{"beschreibung":"Konkretes Signal","quelleUrl":"https://..."}],"warumJetzt":"Warum ist diese Firma in ${dates.today} investitionsbereit? 3-4 Saetze mit Branchenrueckenwind.","branchenrueckenwind":"...","ansprechpartner":[{"name":"Name falls bekannt sonst nicht oeffentlich","funktion":"GF/Inhaber","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]}`
@@ -162,6 +166,65 @@ Wenn keine echten Firmen: "leads": []`,
       .filter(b => b.type === 'text').map(b => b.text).join('');
 
     return res.json({ _jsonText: jsonText, _dateRange: dates.range, _staedte: stadteListe });
+
+  } catch (err) {
+    return res.status(500).json({ error: { message: err.message } });
+  }
+});
+
+// FIRMENPROFIL-ENDPUNKT
+app.post('/api/company', async (req, res) => {
+  const { apiKey, name, ort, branche } = req.body;
+  if (!apiKey || !name) {
+    return res.status(400).json({ error: { message: 'Fehlende Parameter.' } });
+  }
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 3000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: 'Du recherchierst Firmenprofil-Daten. Suche aktiv im Web und gib nur verifiable Fakten zurueck.',
+        messages: [{
+          role: 'user',
+          content: `Recherchiere alle verfuegbaren Informationen ueber das Unternehmen "${name}" in ${ort} (Branche: ${branche}). Suche die Unternehmenswebseite, das Impressum und aktuelle Neuigkeiten.
+
+Finde heraus:
+1. Vollstaendige Adresse
+2. Telefonnummer und E-Mail (aus Impressum)
+3. Geschaeftsfuehrer / Inhaber (Name)
+4. Anzahl Mitarbeiter (falls bekannt)
+5. Gruendungsjahr
+6. Kerngeschaeft und wichtigste Produkte/Dienstleistungen
+7. Aktuelle Neuigkeiten, Pressemitteilungen, Wachstumssignale
+8. Webseite URL
+9. Umsatz oder Wachstumszahlen falls oeffentlich verfuegbar
+10. Warum ist dieses Unternehmen ein interessanter Lead fuer MYWORKSPACE (360-Grad-Bueroloesungen)?
+
+Antworte strukturiert mit klaren Abschnitten.`
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) {
+      if (data.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+      return res.json({ error: data.error });
+    }
+
+    const text = (data.content || [])
+      .filter(b => b.type === 'text').map(b => b.text).join('
+');
+
+    return res.json({ _text: text });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
