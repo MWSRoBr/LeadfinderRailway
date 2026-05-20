@@ -18,13 +18,6 @@ function getDateRange() {
   };
 }
 
-function handleError(err, res) {
-  if (err && err.type === 'overloaded_error') {
-    return res.json({ error: { message: 'overloaded' } });
-  }
-  return res.json({ error: err });
-}
-
 app.post('/api/search', async (req, res) => {
   const { apiKey, location, radius } = req.body;
   if (!apiKey || !location) {
@@ -44,37 +37,25 @@ app.post('/api/search', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1200,
-        system: `Du bist ein Wirtschaftsanalyst mit tiefem Wissen ueber deutsche Maerkte, Boersenentwicklungen und regionale Wirtschaftsstrukturen. Heute ist ${dates.today}.`,
+        max_tokens: 1000,
         messages: [{
           role: 'user',
-          content: `Analysiere welche Branchen im Zeitraum ${dates.range} in der Region ${location} wirtschaftlich besonders stark performed haben.
-
-Beziehe dich auf: DAX/MDAX/SDAX/TecDAX/Scale/Basic Board Entwicklungen, ifo-Geschaeftsklimaindex, ZEW-Index, KfW- und BAFA-Foerderungen, Auftragseingangsstatistiken Destatis.
-
-Nenne 5 Branchen mit je:
-- Name der Branche
-- Staerke: "stark" oder "moderat"  
-- Konkrete Begruendung mit regionalem Bezug (Boersenwerte, Foerdergelder, lokale Cluster, Auftragslage) – 3 praezise Saetze
-
-Format:
-BRANCHE: [Name]
-STAERKE: [stark/moderat]
-BEGRUENDUNG: [3 Saetze]
----`
+          content: `Nenne 4 Branchen die in der Region ${location} wirtschaftlich stark sind. Nutze dein allgemeines Wissen ueber deutsche Wirtschaft und regionale Staerken. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [1-2 Saetze] ---`
         }]
       })
     });
 
     const branchenData = await branchenResp.json();
-    if (branchenData.error) return handleError(branchenData.error, res);
-
+    if (branchenData.error) {
+      if (branchenData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+      return res.json({ error: branchenData.error });
+    }
     const branchenText = (branchenData.content || [])
-      .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 1500);
+      .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 1000);
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // SCHRITT 2: Lead-Suche – Sonnet mit Web-Suche
+    // SCHRITT 2: Lead-Suche – Sonnet MIT Web-Suche
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -87,38 +68,37 @@ BEGRUENDUNG: [3 Saetze]
         model: 'claude-sonnet-4-6',
         max_tokens: 3000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du bist ein praeziser Vertriebsrecherche-Assistent fuer MYWORKSPACE by Lyreco (360-Grad-Bueroloesungen Deutschland). Heute ist ${dates.today}. Suche nur nach Ereignissen aus ${dates.range}. Nenne ausschliesslich echte, verifiable Firmennamen.`,
+        system: `WICHTIG: Du hast ein Live-Web-Such-Tool. Dein Trainingsstichtag ist IRRELEVANT – du kannst JETZT aktuelle Webseiten durchsuchen. Nutze das Tool um echte, aktuelle Firmennamen zu finden. Gib niemals an, dass Daten nicht verfuegbar sind – suche stattdessen.`,
         messages: [{
           role: 'user',
-          content: `Suche nach max. 8 inhabergefuehrten Unternehmen (100-500 Mitarbeiter, mind. 30-40% Bueroanteil) im Umkreis von ${radius}km um ${location}, die im Zeitraum ${dates.range} gewachsen sind oder expandiert haben.
+          content: `Suche mit dem Web-Such-Tool nach echten Unternehmen in ${location}. Fuehre diese Suchen jetzt durch:
 
-Aktuelle Boom-Branchen in der Region:
-${branchenText.substring(0, 600)}
+Suche 1: "${location} Unternehmen neues Buero Expansion"
+Suche 2: "${location} Startup Finanzierung Wachstum"  
+Suche 3: "${location} Firma Umzug neue Raeume"
 
-Suche gezielt nach:
-- Pressemitteilungen zu Expansion, neuem Standort, Wachstum
-- Handelsregister-Bekanntmachungen (Kapitalerhoehungen, neue Eintraege)
-- Wirtschaftsnachrichten der Region
-- Stellenausschreibungen die auf strukturelles Wachstum hinweisen
-
-Fuer jede Firma: Name, Ort, Branche, konkretes Signal mit Datum, URL der Quelle, GF/Inhaber-Name falls im Impressum oder LinkedIn auffindbar.`
+Fuer jeden echten Firmennamen den du findest: Name, Ort, was der Artikel sagt, URL.
+Mindestens 3 echte Firmennamen. Falls eine Suche keine Firmen bringt, probiere andere Begriffe.`
         }]
       })
     });
 
     const searchData = await searchResp.json();
-    if (searchData.error) return handleError(searchData.error, res);
+    if (searchData.error) {
+      if (searchData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+      return res.json({ error: searchData.error });
+    }
 
     const rawText = (searchData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 5000);
 
-    if (!rawText || rawText.length < 80) {
+    if (!rawText || rawText.length < 50) {
       return res.json({ error: { message: 'Keine Suchergebnisse. Bitte erneut versuchen.' } });
     }
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // SCHRITT 3: JSON-Formatierung – Haiku ohne Web-Suche
+    // SCHRITT 3: JSON-Formatierung – Haiku
     const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -129,57 +109,22 @@ Fuer jede Firma: Name, Ort, Branche, konkretes Signal mit Datum, URL der Quelle,
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
-        system: 'Gib NUR ein JSON-Objekt zurueck. Kein Text. Kein Markdown. Beginne sofort mit {',
+        system: `Gib NUR ein JSON-Objekt zurueck. Beginne mit {
+STRIKTE REGEL: Nur echte Unternehmen mit echtem Namen als Leads. 
+NIEMALS aufnehmen: "Datenunverfuegbarkeit", "Keine Daten", "N/A", "Unbekannt", Kammern, Portale.
+Wenn keine echten Firmen vorhanden: "leads": []`,
         messages: [{
           role: 'user',
-          content: `Erstelle ein JSON-Objekt mit "branchen" und "leads" aus diesen Daten. Heute: ${dates.today}.
-
-BRANCHENDATEN:
-${branchenText}
-
-FIRMENDATEN:
-${rawText.substring(0, 3500)}
-
-Format:
-{
-  "branchen": [
-    {
-      "name": "Branchenname",
-      "staerke": "stark oder moderat",
-      "begruendung": "Konkrete Begruendung mit regionalem Bezug"
-    }
-  ],
-  "leads": [
-    {
-      "name": "Firmenname",
-      "branche": "Branche",
-      "ort": "Stadt",
-      "prioritaet": "Hoch oder Mittel",
-      "triggersignale": [
-        {
-          "beschreibung": "Konkretes Signal mit Datum falls bekannt",
-          "quelleUrl": "https://quelleurl.de"
-        }
-      ],
-      "warumJetzt": "Ausfuehrliche Begruendung warum diese Firma in ${dates.today} investitionsbereit ist. Branchenrueckenwind benennen. Wirtschaftliche Lage der Firma erklaeren. Warum jetzt der richtige Moment fuer MYWORKSPACE ist. Mindestens 4 Saetze.",
-      "branchenrueckenwind": "Welcher Boom-Sektor und wie profitiert diese Firma konkret davon",
-      "ansprechpartner": [
-        {
-          "name": "Name GF/Inhaber oder nicht oeffentlich",
-          "funktion": "Inhaber, GF, Geschaeftsfuehrer etc.",
-          "telefon": "nicht oeffentlich",
-          "email": "nicht oeffentlich"
-        }
-      ]
-    }
-  ]
-}`
+          content: `BRANCHEN:\n${branchenText}\n\nWEB-SUCHERGEBNISSE:\n${rawText.substring(0,3500)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"ECHTER Firmenname","branche":"...","ort":"...","prioritaet":"Hoch/Mittel","triggersignale":[{"beschreibung":"Was der Artikel sagt","quelleUrl":"https://..."}],"warumJetzt":"Warum ist diese Firma in ${dates.today} relevant fuer MYWORKSPACE? 3 Saetze.","branchenrueckenwind":"...","ansprechpartner":[{"name":"nicht oeffentlich","funktion":"GF","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]}`
         }]
       })
     });
 
     const formatData = await formatResp.json();
-    if (formatData.error) return handleError(formatData.error, res);
+    if (formatData.error) {
+      if (formatData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+      return res.json({ error: formatData.error });
+    }
 
     const jsonText = (formatData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('');
