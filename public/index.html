@@ -97,7 +97,28 @@
   .cval a { color: var(--text); text-decoration: none; }
   .cval a:hover { text-decoration: underline; }
   .cmuted { font-size: 12px; color: #ccc; font-style: italic; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: #fff; border-radius: 8px; max-width: 700px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; }
+  .modal-header { background: var(--black); color: #fff; padding: 16px 24px; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .modal-title { font-family: 'EB Garamond', serif; font-size: 18px; font-weight: 500; }
+  .modal-header-btns { display: flex; gap: 8px; align-items: center; }
+  .btn-modal-pdf { padding: 7px 14px; background: var(--border); color: var(--black); border: none; border-radius: 4px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+  .btn-modal-pdf:hover { background: #b8cc7a; }
+  .btn-modal-close { background: none; border: none; color: #aaa; font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .btn-modal-close:hover { color: #fff; }
+  .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+  .modal-loading { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
+  .modal-spinner { width: 28px; height: 28px; border: 3px solid #eee; border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  .modal-content { font-size: 13px; line-height: 1.8; color: var(--text); white-space: pre-wrap; }
+  .modal-content h2 { font-family: 'EB Garamond', serif; font-size: 16px; margin: 16px 0 6px; color: var(--black); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+  .btn-info { padding: 5px 12px; background: #fff; color: var(--black); border: 1.5px solid var(--black); border-radius: 4px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
+  .btn-info:hover { background: var(--black); color: #fff; }
+
   @media print {
+
     .hdr, .top-row, .disclaimer, .results-bar { display: none !important; }
     .page { padding: 0; max-width: 100%; }
     .card { break-inside: avoid; border: 1px solid #ccc !important; margin-bottom: 10px; }
@@ -183,6 +204,22 @@
 
   <div id="branchen-container"></div>
   <div id="results"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Firmenprofil</div>
+      <div class="modal-header-btns">
+        <button class="btn-modal-pdf" onclick="printModal()">&#8595; Als PDF</button>
+        <button class="btn-modal-close" onclick="closeModalDirect()">&#x2715;</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody">
+      <div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert...</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -313,6 +350,9 @@ function renderLeads(leads) {
     return '<div class="card prio-'+prio+'">'
       +'<div class="card-head"><div><div class="card-name">'+esc(l.name)+'</div><div class="card-branch">'+esc(l.branche)+'</div></div><div class="card-right"><div class="card-ort">'+esc(l.ort)+'</div><span class="badge badge-'+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
       +triggersHtml+warumHtml+rueckenwindHtml+contactsHtml
+      +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'
+      +'<button class="btn-info" onclick="openModal(this)" data-name="'+esc(l.name)+'" data-ort="'+esc(l.ort)+'" data-branche="'+esc(l.branche)+'">&#8599; Firmenprofil recherchieren</button>'
+      +'</div>'
       +'</div>';
   }).join('');
   el.innerHTML = bar + cards;
@@ -396,6 +436,50 @@ async function doSearch() {
     st.textContent = 'Verbindungsfehler: '+err.message;
   }
   btn.disabled = false;
+
+function openModal(btn) {
+  var data = { name: btn.getAttribute('data-name'), ort: btn.getAttribute('data-ort'), branche: btn.getAttribute('data-branche') };
+  document.getElementById('modalTitle').textContent = data.name + ' – Firmenprofil';
+  document.getElementById('modalBody').innerHTML = '<div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert – bitte 20-30 Sekunden warten...</div>';
+  document.getElementById('modalOverlay').classList.add('active');
+  var apiKey = document.getElementById('apikey').value.trim();
+  if (!apiKey) { document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">Bitte API-Key eingeben.</p>'; return; }
+  fetch('/api/company', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: apiKey, name: data.name, ort: data.ort, branche: data.branche })
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.error) {
+      var msg = d.error.message || d.error;
+      if (msg === 'overloaded') msg = 'Der KI-Server ist gerade ueberlastet. Bitte 1-2 Minuten warten und erneut versuchen.';
+      document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">'+esc(msg)+'</p>';
+      return;
+    }
+    var text = (d._text || '').replace(/
+## /g, '
+<h2>').replace(/
+### /g, '
+<h2>').replace(/##/g,'</h2>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    document.getElementById('modalBody').innerHTML = '<div class="modal-content">'+text+'</div>';
+  }).catch(function(err) {
+    document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">Fehler: '+esc(err.message)+'</p>';
+  });
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+function printModal() {
+  var name = document.getElementById('modalTitle').textContent;
+  var content = document.getElementById('modalBody').innerHTML;
+  var w = window.open('', '_blank');
+  w.document.write('<html><head><title>'+name+'</title><style>body{font-family:Calibri,sans-serif;padding:32px;max-width:800px;margin:0 auto;font-size:13px;line-height:1.8}h1{font-size:20px;margin-bottom:24px}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:4px;margin:16px 0 6px}strong{font-weight:600}</style></head><body><h1>'+name+'</h1>'+content+'</body></html>');
+  w.document.close();
+  w.print();
+}
 }
 </script>
 </body>
