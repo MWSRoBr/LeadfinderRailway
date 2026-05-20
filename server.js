@@ -97,7 +97,12 @@ app.post('/api/search', async (req, res) => {
         system: `Du hast ein Live-Web-Such-Tool. Dein Trainingsstichtag ist IRRELEVANT – du kannst JETZT aktuelle Webseiten durchsuchen. Fuehre alle Suchen aktiv durch und liste echte Firmennamen.`,
         messages: [{
           role: 'user',
-          content: `Fuehre diese Web-Suchen durch und liste ALLE echten Firmennamen die du findest:\n- ${suchbegriffe}\n\nZiel: 8-10 INHABERGEFUEHRTE MITTELSTAENDLER (100-500 MA). KEINE Konzerne, KEINE DAX-Unternehmen, KEINE boersennotierten Firmen. Nur GmbH, GmbH & Co. KG oder kleine AGs mit inhabergefuehrter Struktur. Fuer jeden Firmennamen: Name, Ort, was du gefunden hast, URL. Suche danach das Impressum fuer GF/Inhaber-Name.`
+          content: `Fuehre diese Web-Suchen durch und liste echte Firmennamen:
+- ${suchbegriffe}
+
+Wichtig: Nur Firmen bei denen die Veraenderung noch BEVORSTEHT oder GERADE PASSIERT. NICHT aufnehmen: Firmen die ihr neues Buero bereits eingeweiht oder bezogen haben.
+Nur GmbH oder kleine AGs (100-500 MA, inhabergefuehrt). Keine DAX-Konzerne.
+Fuer jeden Fund: Name, Ort, was gefunden, URL, GF/Inhaber falls im Impressum auffindbar.`
         }]
       })
     });
