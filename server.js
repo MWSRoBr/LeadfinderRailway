@@ -113,6 +113,9 @@ Fuer jeden Fund: Name, Ort, was gefunden, URL, GF/Inhaber falls im Impressum auf
       return res.json({ error: searchData.error });
     }
 
+    // Debug: log full searchData
+    console.log('Step2 status:', searchData.type, 'error:', JSON.stringify(searchData.error), 'content blocks:', (searchData.content||[]).length, 'stop_reason:', searchData.stop_reason);
+
     // Extrahiere Text aus allen Block-Typen
     const rawText = (searchData.content || []).map(b => {
       if (b.type === 'text') return b.text || '';
