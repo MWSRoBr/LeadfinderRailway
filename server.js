@@ -78,7 +78,7 @@ BEGRUENDUNG: [2-3 Saetze mit konkreten Fakten und regionalem Bezug]
         'anthropic-beta': 'web-search-2025-03-05'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 3000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: `Du bist ein Vertriebsrecherche-Assistent fuer MYWORKSPACE by Lyreco. Heute ist ${dates.today}. Finde nur Ereignisse aus dem Zeitraum ${dates.range}. Aeltere Ereignisse ignorieren.`,
