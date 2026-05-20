@@ -347,7 +347,12 @@ async function doSearch() {
     if (!resp.ok || data.error) {
       stopProgress(false);
       st.className = 'status err';
-      st.textContent = 'Fehler: '+((data.error&&(data.error.message||data.error))||resp.status);
+      var errMsg = (data.error && (data.error.message || data.error)) || resp.status;
+      if (errMsg === 'overloaded' || String(errMsg).toLowerCase().indexOf('overload') !== -1) {
+        st.textContent = 'Der KI-Server ist gerade ueberlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
+      } else {
+        st.textContent = 'Fehler: ' + errMsg;
+      }
       btn.disabled = false; return;
     }
 
