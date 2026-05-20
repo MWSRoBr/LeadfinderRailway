@@ -221,7 +221,7 @@ function startProgress() {
   var i = 0;
   progressInterval = setInterval(function() {
     if (i < steps.length) { bar.style.width = steps[i].pct + '%'; label.textContent = steps[i].text; i++; }
-  }, 8000);
+  }, 15000);
 }
 
 function stopProgress(ok) {
