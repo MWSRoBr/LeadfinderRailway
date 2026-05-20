@@ -61,7 +61,7 @@ app.post('/api/search', async (req, res) => {
     const branchenText = (branchenData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 1000);
 
-    await new Promise(r => setTimeout(r, 20000));
+    await new Promise(r => setTimeout(r, 40000));
 
     // STEP 2: Lead-Suche MIT Web-Suche
     const searchData = await callClaude(apiKey, {
@@ -88,7 +88,7 @@ app.post('/api/search', async (req, res) => {
       return res.json({ error: { message: 'Keine Suchergebnisse. Bitte erneut versuchen.' } });
     }
 
-    await new Promise(r => setTimeout(r, 20000));
+    await new Promise(r => setTimeout(r, 40000));
 
     // STEP 3: JSON-Formatierung OHNE Web-Suche
     const formatData = await callClaude(apiKey, {
