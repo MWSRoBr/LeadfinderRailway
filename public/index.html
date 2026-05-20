@@ -250,7 +250,7 @@ function extractData(raw) {
   return null;
 }
 
-function renderBranchen(branchen, dateRange) {
+function renderBranchen(branchen, dateRange, staedte) {
   if (!branchen || !branchen.length) return;
   var el = document.getElementById('branchen-container');
   var items = branchen.map(function(b) {
@@ -267,7 +267,7 @@ function renderBranchen(branchen, dateRange) {
   el.innerHTML = '<div class="branchen-panel">'
     +'<div class="branchen-header">'
     +'<div class="branchen-title">Regionale Branchenanalyse</div>'
-    +'<div class="branchen-periode">'+esc(dateRange||'Letzte 12 Monate')+'</div>'
+    +'<div class="branchen-periode">'+esc(dateRange||'Letzte 12 Monate')+(staedte?'<br><span style="font-size:10px">Abgedeckte Region: '+esc(staedte)+'</span>':'')+'</div>'
     +'</div>'
     +'<div class="branchen-grid">'+items+'</div>'
     +'</div>';
@@ -372,7 +372,7 @@ async function doSearch() {
 
     stopProgress(true);
 
-    if (branchen.length) renderBranchen(branchen, data._dateRange);
+    if (branchen.length) renderBranchen(branchen, data._dateRange, data._staedte);
 
     if (leads.length) {
       var hochCount = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; }).length;
