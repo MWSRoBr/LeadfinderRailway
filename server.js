@@ -66,7 +66,7 @@ BEGRUENDUNG: [2-3 Saetze mit konkreten Fakten und regionalem Bezug]
     const branchenText = (branchenData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 2000);
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 20000));
 
     // STEP 2: Lead-Suche mit Sonnet + Web-Suche
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -110,7 +110,7 @@ Fuer jede Firma: Name, Ort, was gefunden, URL der Quelle, Name GF/Inhaber wenn a
       return res.json({ error: { message: 'Keine Suchergebnisse. Bitte erneut versuchen.' } });
     }
 
-    await new Promise(r => setTimeout(r, 5000));
+    await new Promise(r => setTimeout(r, 20000));
 
     // STEP 3: JSON-Formatierung mit Haiku
     const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
