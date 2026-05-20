@@ -107,8 +107,20 @@ Mindestens 3 echte Firmennamen. Falls eine Suche keine Firmen bringt, probiere a
       return '';
     }).filter(Boolean).join('\n').substring(0, 5000);
 
+    // Debug: log all block types and raw content
+    const debugBlocks = (searchData.content || []).map(b => ({
+      type: b.type,
+      hasText: !!b.text,
+      hasContent: !!b.content,
+      contentTypes: b.content ? b.content.map(c => c.type || typeof c) : [],
+      preview: b.text ? b.text.substring(0,100) : (b.content ? JSON.stringify(b.content).substring(0,200) : '')
+    }));
+
     if (!rawText || rawText.length < 50) {
-      return res.json({ error: { message: 'Keine Suchergebnisse. Bitte erneut versuchen.' } });
+      return res.json({
+        error: { message: 'Keine Suchergebnisse.' },
+        _debug: { blocks: debugBlocks, rawTextLength: rawText.length }
+      });
     }
 
     await new Promise(r => setTimeout(r, 8000));
@@ -144,7 +156,7 @@ Wenn keine echten Firmen vorhanden: "leads": []`,
     const jsonText = (formatData.content || [])
       .filter(b => b.type === 'text').map(b => b.text).join('');
 
-    return res.json({ _jsonText: jsonText, _dateRange: dates.range });
+    return res.json({ _jsonText: jsonText, _dateRange: dates.range, _debug: { blocks: debugBlocks, rawTextLength: rawText.length, rawPreview: rawText.substring(0,300) } });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
