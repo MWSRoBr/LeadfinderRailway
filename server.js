@@ -18,75 +18,85 @@ function getDateRange() {
   };
 }
 
-// Gibt Nachbarstädte basierend auf Radius zurück
-function getNearbyStadte(location, radius) {
-  const stadtMap = {
-    'koeln': { 10: ['Köln'], 25: ['Köln','Leverkusen','Hürth','Bergisch Gladbach'], 50: ['Köln','Leverkusen','Bonn','Düsseldorf','Wuppertal','Aachen'], 75: ['Köln','Bonn','Düsseldorf','Aachen','Wuppertal','Mönchengladbach'], 100: ['Köln','Bonn','Düsseldorf','Aachen','Wuppertal','Dortmund','Essen'] },
-    'berlin': { 10: ['Berlin'], 25: ['Berlin','Potsdam'], 50: ['Berlin','Potsdam','Brandenburg'], 75: ['Berlin','Potsdam','Brandenburg','Frankfurt Oder'], 100: ['Berlin','Potsdam','Brandenburg','Frankfurt Oder','Cottbus','Magdeburg'] },
-    'hamburg': { 10: ['Hamburg'], 25: ['Hamburg','Lübeck'], 50: ['Hamburg','Lübeck','Kiel','Schwerin'], 75: ['Hamburg','Lübeck','Kiel','Schwerin','Bremen'], 100: ['Hamburg','Lübeck','Kiel','Schwerin','Bremen','Hannover'] },
-    'münchen': { 10: ['München'], 25: ['München','Augsburg'], 50: ['München','Augsburg','Ingolstadt','Rosenheim'], 75: ['München','Augsburg','Ingolstadt','Rosenheim','Landshut'], 100: ['München','Augsburg','Ingolstadt','Regensburg','Salzburg'] },
-    'frankfurt': { 10: ['Frankfurt'], 25: ['Frankfurt','Offenbach','Darmstadt'], 50: ['Frankfurt','Offenbach','Darmstadt','Wiesbaden','Mainz'], 75: ['Frankfurt','Darmstadt','Wiesbaden','Mainz','Mannheim'], 100: ['Frankfurt','Darmstadt','Wiesbaden','Mannheim','Heidelberg','Kassel'] },
-    'hannover': { 10: ['Hannover'], 25: ['Hannover','Hildesheim'], 50: ['Hannover','Hildesheim','Braunschweig','Hameln'], 75: ['Hannover','Hildesheim','Braunschweig','Hameln','Bielefeld'], 100: ['Hannover','Hildesheim','Braunschweig','Bielefeld','Wolfsburg','Paderborn'] },
-    'stuttgart': { 10: ['Stuttgart'], 25: ['Stuttgart','Ludwigsburg','Esslingen'], 50: ['Stuttgart','Ludwigsburg','Esslingen','Heilbronn','Tübingen'], 75: ['Stuttgart','Heilbronn','Tübingen','Reutlingen','Karlsruhe'], 100: ['Stuttgart','Heilbronn','Karlsruhe','Mannheim','Ulm'] },
-    'düsseldorf': { 10: ['Düsseldorf'], 25: ['Düsseldorf','Köln','Mönchengladbach'], 50: ['Düsseldorf','Köln','Mönchengladbach','Duisburg','Essen'], 75: ['Düsseldorf','Köln','Essen','Dortmund','Aachen'], 100: ['Düsseldorf','Köln','Essen','Dortmund','Aachen','Bonn'] },
-    'leipzig': { 10: ['Leipzig'], 25: ['Leipzig','Halle'], 50: ['Leipzig','Halle','Dessau','Bitterfeld'], 75: ['Leipzig','Halle','Dresden','Chemnitz'], 100: ['Leipzig','Halle','Dresden','Chemnitz','Erfurt','Magdeburg'] },
-    'dresden': { 10: ['Dresden'], 25: ['Dresden','Radebeul'], 50: ['Dresden','Chemnitz','Bautzen'], 75: ['Dresden','Chemnitz','Zwickau','Görlitz'], 100: ['Dresden','Chemnitz','Leipzig','Zwickau','Görlitz'] }
-  };
-  const key = location.toLowerCase().replace(/ü/g,'ü').replace(/ö/g,'ö').replace(/ä/g,'ä');
-  const found = stadtMap[key] || stadtMap[Object.keys(stadtMap).find(k => location.toLowerCase().includes(k)) || ''];
-  if (found) {
-    const r = parseInt(radius);
-    if (r <= 10) return found[10] || [location];
-    if (r <= 25) return found[25] || [location];
-    if (r <= 50) return found[50] || [location];
-    if (r <= 75) return found[75] || [location];
-    return found[100] || [location];
-  }
-  return [location];
-}
-
-app.post('/api/search', async (req, res) => {
-  const { apiKey, location, radius } = req.body;
-  if (!apiKey || !location) {
-    return res.status(400).json({ error: { message: 'Fehlende Parameter.' } });
-  }
-
-  const dates = getDateRange();
-  const staedte = getNearbyStadte(location, radius);
-  const stadteListe = staedte.join(', ');
+// Region suggestion endpoint
+app.post('/api/region', async (req, res) => {
+  const { apiKey, city } = req.body;
+  if (!apiKey || !city) return res.status(400).json({ error: 'Missing params' });
 
   try {
-    // SCHRITT 1: Branchenanalyse – Sonnet ohne Web-Suche
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        system: 'Antworte NUR mit einem JSON-Array aus 4-6 Städtenamen. Kein Text.',
+        messages: [{ role: 'user', content: `Welche 4-6 Städte gehören zur Wirtschaftsregion von ${city} in Deutschland? Nur die wichtigsten, wirtschaftlich relevanten Städte im unmittelbaren Umkreis. JSON-Array: ["Stadt1","Stadt2",...]` }]
+      })
+    });
+    const data = await resp.json();
+    if (data.error) return res.json({ error: data.error });
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = text.match(/\[[\s\S]*\]/);
+    const cities = match ? JSON.parse(match[0]) : [city];
+    return res.json({ cities });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Main search endpoint
+app.post('/api/search', async (req, res) => {
+  const { apiKey, cities, modus, strictness } = req.body;
+  if (!apiKey || !cities || !cities.length) return res.status(400).json({ error: 'Missing params' });
+
+  const dates = getDateRange();
+  const stadteListe = cities.join(', ');
+
+  // Strictness settings
+  const strictMap = {
+    streng:      { label: 'nur klare GmbH, starke Signale, inhabergeführt', minSignals: 'starke' },
+    ausgewogen:  { label: 'GmbH bevorzugt, mittlere Signale reichen, überwiegend inhabergeführt', minSignals: 'mittlere' },
+    breit:       { label: 'auch kleine AGs, schwächere Signale werden aufgenommen, mehr Treffer aber auch vagere', minSignals: 'auch schwächere' }
+  };
+  const strict = strictMap[strictness] || strictMap.ausgewogen;
+
+  // Modus settings
+  const modusMap = {
+    mittelstand: {
+      size: '100–500 Mitarbeiter, inhabergeführt',
+      signals: 'Stellenanzeigen für Bürojobs/Office Manager, Pressemeldungen neuer Standort, Handelsregistereintrag, Finanzierungsrunde, Umzugsmeldung',
+      contact: 'Inhaber oder Geschäftsführer',
+      goal: 'direkter Auftrag beim Entscheider'
+    },
+    grosskunde: {
+      size: 'ab 500 Mitarbeiter, auch nicht inhabergeführt',
+      signals: 'Reorganisation, neue Niederlassung, Pilotprojekt New Work, Wechsel im Facility Management, Abteilungsumzug, Digitalisierungsoffensive',
+      contact: 'Facility Manager, Office Manager, Abteilungsleiter – jemand mit lokaler Entscheidungskompetenz',
+      goal: 'Einstieg über Teilprojekt als Türöffner für Rahmenvertrag'
+    }
+  };
+  const mod = modusMap[modus] || modusMap.mittelstand;
+
+  try {
+    // STEP 1: Branchenanalyse (Sonnet, kein Web-Search)
     const branchenResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `Nenne 5 wirtschaftlich starke Branchen in der Region ${location} (${stadteListe}). Nutze dein Wissen ueber regionale Wirtschaftscluster, DAX/MDAX-Entwicklungen, ifo-Index. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze] ---`
-        }]
+        messages: [{ role: 'user', content: `Nenne 5 wirtschaftlich starke Branchen in der Region ${stadteListe}. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze mit regionalem Bezug] ---` }]
       })
     });
-
     const branchenData = await branchenResp.json();
-    if (branchenData.error) {
-      if (branchenData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
-      return res.json({ error: branchenData.error });
-    }
-    const branchenText = (branchenData.content || [])
-      .filter(b => b.type === 'text').map(b => b.text).join('\n').substring(0, 1000);
+    if (branchenData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (branchenData.error) return res.json({ error: branchenData.error });
+    const branchenText = (branchenData.content || []).filter(b => b.type === 'text').map(b => b.text).join('').substring(0, 1000);
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // SCHRITT 2: Lead-Suche – Sonnet mit Web-Suche, mehrere Staedte + Signaltypen
-    const suchbegriffe = staedte.slice(0, 3).flatMap(s => [
-      `"${s}" Unternehmen expandiert neues Buero 2024 2025 2026`,
-      `"${s}" GmbH Finanzierung Wachstum Mitarbeiter 2025`,
-      `"${s}" Firma neuer Standort zieht um 2025 2026`
-    ]).slice(0, 6).join('\n- ');
-
+    // STEP 2: Lead-Suche (Sonnet + Web-Search, breitere Signale)
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
@@ -94,56 +104,34 @@ app.post('/api/search', async (req, res) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast ein Live-Web-Such-Tool. Dein Trainingsstichtag ist IRRELEVANT – du kannst JETZT aktuelle Webseiten durchsuchen. Fuehre alle Suchen aktiv durch und liste echte Firmennamen.`,
-        messages: [{
-          role: 'user',
-          content: `Fuehre diese Web-Suchen durch und liste echte Firmennamen:
-- ${suchbegriffe}
+        system: `Du hast Live-Web-Suche. Nutze sie aktiv. Dein Trainingsstichtag ist irrelevant – du kannst JETZT suchen.`,
+        messages: [{ role: 'user', content: `Suche nach Unternehmen (${mod.size}) in ${stadteListe} die sich verändern. Signale: ${mod.signals}. Zeitraum: ${dates.range}. Ziel: 8-10 Firmennamen.
 
-Wichtig: Nur Firmen bei denen die Veraenderung noch BEVORSTEHT oder GERADE PASSIERT. NICHT aufnehmen: Firmen die ihr neues Buero bereits eingeweiht oder bezogen haben.
-Nur GmbH oder kleine AGs (100-500 MA, inhabergefuehrt). Keine DAX-Konzerne.
-Fuer jeden Fund: Name, Ort, was gefunden, URL, GF/Inhaber falls im Impressum auffindbar.`
-        }]
+Fuehre mehrere Suchen durch:
+- "${stadteListe.split(',')[0]} GmbH expandiert Büro 2025 2026"
+- "${stadteListe.split(',')[0]} Unternehmen neuer Standort Mitarbeiter 2025"
+- "${stadteListe.split(',')[0]} GmbH Finanzierung Wachstum 2025"
+- "${stadteListe.split(',')[0]} Firma Umzug Büro 2025 2026"
+- "${stadteListe.split(',')[0]} Office Manager Stellenanzeige 2025"
+
+Für jede Firma: Name, Ort, was gefunden, URL, Ansprechpartner (${mod.contact}) falls im Impressum auffindbar. Keine Konzerne, keine DAX-Unternehmen.` }]
       })
     });
-
     const searchData = await searchResp.json();
-    if (searchData.error) {
-      if (searchData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
-      return res.json({ error: searchData.error });
-    }
+    if (searchData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (searchData.error) return res.json({ error: searchData.error });
 
-    // Debug: log full searchData
-    console.log('Step2 status:', searchData.type, 'error:', JSON.stringify(searchData.error), 'content blocks:', (searchData.content||[]).length, 'stop_reason:', searchData.stop_reason);
-
-    // Extrahiere Text aus allen Block-Typen
     const rawText = (searchData.content || []).map(b => {
       if (b.type === 'text') return b.text || '';
-      if (b.type === 'web_search_tool_result') {
-        if (Array.isArray(b.content)) {
-          return b.content.map(c => {
-            if (typeof c === 'string') return c;
-            if (c.type === 'document') return (c.document && c.document.text) || '';
-            if (c.type === 'text') return c.text || '';
-            return JSON.stringify(c).substring(0, 300);
-          }).join('\n');
-        }
-        return JSON.stringify(b.content || '').substring(0, 1000);
-      }
-      if (b.type === 'tool_result') {
-        return (b.content || []).map(c => c.text || '').join('\n');
-      }
+      if (b.type === 'web_search_tool_result') return (b.content || []).map(c => c.text || c.document?.text || '').join('\n');
       return '';
-    }).filter(Boolean).join('\n').substring(0, 6000);
+    }).filter(Boolean).join('\n').substring(0, 5000);
 
-    if (!rawText || rawText.length < 80) {
-      const debugBlocks = (searchData.content || []).map(b => ({ type: b.type, preview: JSON.stringify(b).substring(0, 150) }));
-      return res.json({ error: { message: 'Keine Suchergebnisse.' }, _debug: { blocks: debugBlocks } });
-    }
+    if (!rawText || rawText.length < 50) return res.json({ error: { message: 'no_results' } });
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // SCHRITT 3: JSON-Formatierung – Haiku
+    // STEP 3: JSON-Formatierung (Haiku, kein Web-Search)
     const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
@@ -151,26 +139,21 @@ Fuer jeden Fund: Name, Ort, was gefunden, URL, GF/Inhaber falls im Impressum auf
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
         system: `Gib NUR ein JSON-Objekt zurueck. Beginne mit {
-Nur echte Firmen als Leads. NICHT aufnehmen: StepStone, Indeed, LinkedIn, IHK, Kammern, Jobportale, Burovermietungen, Coworking-Anbieter.
-NICHT aufnehmen: boersennotierte Konzerne oder Firmen mit 500+ Mitarbeitern (z.B. Continental, VW, TUI, Deutsche Messe, Siemens, Hannover Rueck, Talanx, Allianz, BMW, BASF, Bayer).
-Nur GmbH oder kleine inhabergefuehrte Unternehmen.
-Wenn keine passenden Firmen: "leads": []`,
-        messages: [{
-          role: 'user',
-          content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0,4000)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[/* bis zu 10 echte Firmen */{"name":"Echter Firmenname","branche":"...","ort":"...","prioritaet":"Hoch/Mittel","triggersignale":[{"beschreibung":"Konkretes Signal","quelleUrl":"https://..."}],"warumJetzt":"Warum ist diese Firma in ${dates.today} investitionsbereit? 3-4 Saetze mit Branchenrueckenwind.","branchenrueckenwind":"...","ansprechpartner":[{"name":"Name falls bekannt sonst nicht oeffentlich","funktion":"GF/Inhaber","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}]}]}`
-        }]
+Filter (${strict.label}):
+- NICHT: DAX/MDAX-Konzerne, boersennotierte Unternehmen, Siemens, VW, Continental, TUI, Deutsche Messe, Hannover Rueck, Talanx, Allianz, BMW, BASF, Bayer und aehnliche Grosskonzerne
+- NICHT: Burovermietungen, Coworking, Kammern, Jobportale
+- NICHT: Phantomeintraege wie "Keine Daten"
+- Prioritaet HOCH: ${strict.minSignals} Signale + klar zur Zielgruppe passend
+- Prioritaet MITTEL: schwaecher oder nur vage passend
+- Wenn keine Firmen: "leads":[]`,
+        messages: [{ role: 'user', content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0, 3500)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum jetzt relevant? 2-3 Saetze ohne Fachbegriffe.","ansprechpartner":{"name":"nicht oeffentlich","funktion":"${mod.contact.split(',')[0]}"}}]}` }]
       })
     });
-
     const formatData = await formatResp.json();
-    if (formatData.error) {
-      if (formatData.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
-      return res.json({ error: formatData.error });
-    }
+    if (formatData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (formatData.error) return res.json({ error: formatData.error });
 
-    const jsonText = (formatData.content || [])
-      .filter(b => b.type === 'text').map(b => b.text).join('');
-
+    const jsonText = (formatData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     return res.json({ _jsonText: jsonText, _dateRange: dates.range, _staedte: stadteListe });
 
   } catch (err) {
@@ -178,58 +161,51 @@ Wenn keine passenden Firmen: "leads": []`,
   }
 });
 
-// FIRMENPROFIL-ENDPUNKT
+// Company profile endpoint (Client Screening)
 app.post('/api/company', async (req, res) => {
-  const { apiKey, name, ort, branche } = req.body;
-  if (!apiKey || !name) {
-    return res.status(400).json({ error: { message: 'Fehlende Parameter.' } });
-  }
+  const { apiKey, name, ort, branche, modus } = req.body;
+  if (!apiKey || !name) return res.status(400).json({ error: 'Missing params' });
+
+  const contactFocus = modus === 'grosskunde'
+    ? 'Facility Manager, Office Manager und Abteilungsleiter'
+    : 'Geschaeftsfuehrer und Inhaber';
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05'
-      },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 3000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: 'Du recherchierst Firmenprofil-Daten. Suche aktiv im Web und gib nur verifiable Fakten zurueck.',
-        messages: [{
-          role: 'user',
-          content: `Recherchiere alle verfuegbaren Informationen ueber das Unternehmen "${name}" in ${ort} (Branche: ${branche}). Suche die Unternehmenswebseite, das Impressum und aktuelle Neuigkeiten.
+        system: 'Recherchiere Firmendaten gruendlich. Antworte NUR mit JSON. Beginne mit {',
+        messages: [{ role: 'user', content: `Recherchiere alle verfuegbaren Infos ueber "${name}" in ${ort} (${branche}). Suche Impressum, Website, LinkedIn, Pressemitteilungen.
 
-Finde heraus:
-1. Vollstaendige Adresse
-2. Telefonnummer und E-Mail (aus Impressum)
-3. Geschaeftsfuehrer / Inhaber (Name)
-4. Anzahl Mitarbeiter (falls bekannt)
-5. Gruendungsjahr
-6. Kerngeschaeft und wichtigste Produkte/Dienstleistungen
-7. Aktuelle Neuigkeiten, Pressemitteilungen, Wachstumssignale
-8. Webseite URL
-9. Umsatz oder Wachstumszahlen falls oeffentlich verfuegbar
-10. Warum ist dieses Unternehmen ein interessanter Lead fuer MYWORKSPACE (360-Grad-Bueroloesungen)?
-
-Antworte strukturiert mit klaren Abschnitten.`
-        }]
+Antworte NUR mit diesem JSON:
+{
+  "basis": {"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},
+  "selbstbild": {"farben":{"beschreibung":"...","hex_codes":[]},"typografie":"...","bildwelt":"...","tonalitaet":"...","keywords":[]},
+  "fremdbild": {"bewertungen":"...","medien":"...","recruiting":"..."},
+  "wettbewerb": {"positionierung":"...","differenzierung":"...","segment":"Premium oder Mitte oder Budget","awards":"..."},
+  "design_reife": {"stufe":1,"stufe_label":"...","begruendung":"..."},
+  "bueroplanung": {"arbeitskultur":"...","raumbedarf":"...","aesthetik_praeferenz":"...","new_work_affinitaet":"hoch oder mittel oder gering","new_work_begruendung":"..."},
+  "linkedin": {"groesse":"...","wachstumstrend":"...","wachstum_begruendung":"...","offene_stellen":"...","expansion_indikator":"..."},
+  "pressespiegel": [{"datum":"...","titel":"...","zusammenfassung":"...","relevanz_vertrieb":"..."}],
+  "budget": {"umsatz_schaetzung":"...","mitarbeiterzahl":"...","cluster":"Einstieg oder Mid oder Premium","cluster_begruendung":"...","produktempfehlung":"..."},
+  "ansprechpartner": [{"name":"...","funktion":"${contactFocus}","telefon":"...","email":"..."}],
+  "empfehlung": "Konkreter Einstiegssatz fuer MYWORKSPACE Kaltanruf",
+  "quellen": [{"label":"...","url":"..."}]
+}` }]
       })
     });
-
     const data = await resp.json();
-    if (data.error) {
-      if (data.error.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
-      return res.json({ error: data.error });
-    }
+    if (data.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (data.error) return res.json({ error: data.error });
 
-    const text = (data.content || [])
-      .filter(b => b.type === 'text').map(b => b.text).join('\n');
-
-    return res.json({ _text: text });
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = text.match(/\{[\s\S]*\}/);
+    const parsed = match ? JSON.parse(match[0]) : null;
+    return res.json({ _data: parsed, _raw: text });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
