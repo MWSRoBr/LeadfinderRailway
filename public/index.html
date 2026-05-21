@@ -4,281 +4,466 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MYWORKSPACE Lead-Finder</title>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --black: #111110; --white: #ffffff; --bg: #f9f9f7;
-    --border: #CED994; --text: #111110; --text-mid: #5a5750;
-    --text-muted: #a09b93; --blue: #2a4a7f; --green: #2a6b45; --green-ok: #1e7a3e;
-  }
-  body { font-family: 'Calibri Light', Calibri, system-ui, sans-serif; background: var(--white); color: var(--text); min-height: 100vh; }
-  .hdr { background: var(--black); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; }
-  .hdr h1 { font-family: 'EB Garamond', serif; font-size: 20px; font-weight: 500; letter-spacing: 0.06em; color: #fff; }
-  .hdr-right { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #555; }
-  .page { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
-  .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; align-items: stretch; }
-  .panel { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 24px; }
-  .panel-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 18px; }
-  label.lbl { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-mid); margin-bottom: 5px; }
-  .field { margin-bottom: 14px; }
-  input[type=text], input[type=password], select { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 5px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 14px; color: var(--text); background: var(--bg); outline: none; transition: border-color 0.15s; }
-  input:focus, select:focus { border-color: var(--black); background: #fff; }
-  .key-wrap { position: relative; }
-  .key-wrap input { padding-right: 72px; }
-  .btn-clear-key { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #ccc; background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 4px; }
-  .btn-clear-key:hover { color: #999; }
-  .key-saved { font-size: 10px; color: var(--text-muted); margin-top: 3px; font-style: italic; }
-  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
-  .btn-search { width: 100%; padding: 12px; background: var(--black); color: #fff; border: 2px solid var(--black); border-radius: 6px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
-  .btn-search:hover { background: #000; }
-  .btn-search:disabled { background: #bbb; border-color: #bbb; cursor: not-allowed; }
-  .progress-wrap { margin-top: 14px; display: none; }
-  .progress-wrap.active { display: block; }
-  .spinner-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .spinner { width: 20px; height: 20px; flex-shrink: 0; border: 2.5px solid #ddd; border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .progress-label { font-size: 13px; color: var(--text-mid); font-style: italic; }
-  .progress-bar-track { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
-  .progress-bar-fill { height: 100%; background: var(--black); border-radius: 2px; transition: width 0.6s ease; width: 0%; }
-  .status { font-size: 12px; color: var(--text-mid); margin-top: 8px; min-height: 18px; }
-  .status.err { color: #b22222; font-style: normal; font-weight: 600; }
-  .status.ok { color: var(--green-ok); font-style: normal; font-weight: 600; }
-  .info-panel { background: var(--black); border-radius: 8px; padding: 24px; }
-  .info-panel h3 { font-family: 'EB Garamond', serif; font-size: 20px; font-weight: 500; color: #fff; margin-bottom: 14px; }
-  .info-panel p { font-size: 13px; line-height: 1.7; color: #b0aba3; margin-bottom: 12px; }
-  .info-sep { border: none; border-top: 1px solid #222; margin: 14px 0; }
-  .info-sub { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #555; margin-bottom: 7px; }
-  .tag { display: inline-block; background: #1e1e1c; color: #b0aba3; font-size: 10px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; margin: 2px; }
-  .disclaimer { background: #fffbe6; border: 1.5px solid #e8c840; border-left: 4px solid #c8a800; border-radius: 8px; padding: 16px 24px; margin-bottom: 24px; font-size: 15px; line-height: 1.7; color: #5a4a00; }
-  .disclaimer strong { color: #3a3000; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --black: #111110;
+  --white: #ffffff;
+  --green: #5a7a2a;
+  --green-light: #CED994;
+  --green-pale: #f4f8e8;
+  --border: #e4e0d8;
+  --bg: #f8f7f4;
+  --text: #111110;
+  --text-mid: #5a5750;
+  --text-muted: #a09b93;
+  --blue: #2a4a7f;
+  --red: #b22222;
+}
 
-  /* Branchenanalyse Panel */
-  .branchen-panel { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
-  .branchen-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
-  .branchen-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
-  .branchen-periode { font-size: 11px; color: var(--text-muted); font-style: italic; }
-  .branchen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-  .branche-item { background: var(--bg); border-radius: 6px; padding: 14px 16px; border-left: 3px solid #1e5c1e; }
-  .branche-item.moderat { border-left-color: #CED994; }
-  .branche-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .branche-name { font-size: 14px; font-weight: 600; color: var(--text); }
-  .branche-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; }
-  .badge-stark { background: #1e5c1e; color: #fff; }
-  .badge-moderat { background: #CED994; color: #3a5a1a; }
-  .branche-begruendung { font-size: 12px; line-height: 1.6; color: var(--text-mid); }
+body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--white); color: var(--text); min-height: 100vh; }
 
-  /* Results */
-  .results-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1.5px solid var(--border); margin-bottom: 20px; }
-  .results-count { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
-  .btn-pdf { padding: 8px 18px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 5px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
-  .btn-pdf:hover { background: var(--black); color: #fff; }
-  .card { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 22px; margin-bottom: 14px; border-left: 4px solid var(--black); }
-  .card.prio-mittel { border-left-color: #ccc; }
-  .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .card-name { font-family: 'EB Garamond', serif; font-size: 21px; font-weight: 500; line-height: 1.2; }
-  .card-branch { font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
-  .card-right { text-align: right; flex-shrink: 0; margin-left: 16px; }
-  .card-ort { font-size: 12px; color: var(--text-muted); }
-  .badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; margin-top: 5px; }
-  .badge-hoch { background: var(--black); color: #fff; }
-  .badge-mittel { background: #eee; color: #666; }
-  .slbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 14px 0 5px; }
-  .trigger-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-  .trigger-item { background: var(--bg); border-left: 3px solid var(--black); border-radius: 0 5px 5px 0; padding: 9px 13px; font-size: 13px; line-height: 1.5; }
-  .trigger-src { font-size: 11px; margin-top: 4px; color: var(--text-muted); }
-  .trigger-src a { color: var(--text-mid); word-break: break-all; text-decoration: underline; }
-  .warum { background: #eef2fa; border-left: 3px solid var(--blue); border-radius: 0 5px 5px 0; padding: 12px 16px; font-size: 13px; line-height: 1.7; color: #1a2e50; margin-top: 4px; }
-  .rueckenwind { background: #eef6f0; border-left: 3px solid var(--green); border-radius: 0 5px 5px 0; padding: 10px 14px; font-size: 13px; line-height: 1.55; color: #1a3d2a; margin-top: 4px; }
-  .contacts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
-  .contact-item { background: var(--bg); border-radius: 5px; padding: 9px 14px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-  .clbl { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
-  .cval { font-size: 12px; font-weight: 600; color: var(--text); word-break: break-all; }
-  .cval a { color: var(--text); text-decoration: none; }
-  .cval a:hover { text-decoration: underline; }
-  .cmuted { font-size: 12px; color: #ccc; font-style: italic; }
+/* ── HEADER ── */
+.hdr { background: var(--black); padding: 0 40px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.hdr-brand { font-family: 'EB Garamond', serif; font-size: 18px; color: #fff; letter-spacing: 0.04em; }
+.hdr-brand span { color: var(--green-light); }
+.hdr-sub { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #555; }
 
-  /* Modal */
-  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-  .modal-overlay.active { display: flex; }
-  .modal { background: #fff; border-radius: 8px; max-width: 700px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; }
-  .modal-header { background: var(--black); color: #fff; padding: 16px 24px; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-  .modal-title { font-family: 'EB Garamond', serif; font-size: 18px; font-weight: 500; }
-  .modal-header-btns { display: flex; gap: 8px; align-items: center; }
-  .btn-modal-pdf { padding: 7px 14px; background: var(--border); color: var(--black); border: none; border-radius: 4px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
-  .btn-modal-pdf:hover { background: #b8cc7a; }
-  .btn-modal-close { background: none; border: none; color: #aaa; font-size: 22px; cursor: pointer; line-height: 1; padding: 0 4px; }
-  .btn-modal-close:hover { color: #fff; }
-  .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-  .modal-loading { text-align: center; padding: 40px; color: var(--text-muted); font-style: italic; }
-  .modal-spinner { width: 28px; height: 28px; border: 3px solid #eee; border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-  .modal-content { font-size: 13px; line-height: 1.8; color: var(--text); white-space: pre-wrap; }
-  .modal-content h2 { font-family: 'EB Garamond', serif; font-size: 16px; margin: 16px 0 6px; color: var(--black); border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-  .btn-info { padding: 5px 12px; background: #fff; color: var(--black); border: 1.5px solid var(--black); border-radius: 4px; font-family: 'Calibri Light', Calibri, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; margin-top: 4px; }
-  .btn-info:hover { background: var(--black); color: #fff; }
+/* ── MAIN LAYOUT ── */
+.main { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
 
-  @media print {
+/* ── STEPS ── */
+.step { margin-bottom: 40px; opacity: 0.4; transition: opacity 0.3s; pointer-events: none; }
+.step.active { opacity: 1; pointer-events: all; }
+.step.done { opacity: 0.7; pointer-events: all; }
 
-    .hdr, .top-row, .disclaimer, .results-bar { display: none !important; }
-    .page { padding: 0; max-width: 100%; }
-    .card { break-inside: avoid; border: 1px solid #ccc !important; margin-bottom: 10px; }
-    .branchen-panel { break-inside: avoid; }
-  }
-  @media (max-width: 780px) {
-    .top-row { grid-template-columns: 1fr; }
-    .contact-item { grid-template-columns: 1fr 1fr; }
-    .branchen-grid { grid-template-columns: 1fr; }
-  }
+.step-num { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.step-title { font-family: 'EB Garamond', serif; font-size: 26px; font-weight: 400; color: var(--text); margin-bottom: 6px; line-height: 1.2; }
+.step-desc { font-size: 14px; color: var(--text-mid); margin-bottom: 20px; line-height: 1.6; }
+
+/* ── CITY INPUT ── */
+.city-input-wrap { display: flex; gap: 12px; align-items: stretch; }
+.city-input { flex: 1; font-family: 'DM Sans', sans-serif; font-size: 18px; padding: 14px 18px; border: 2px solid var(--border); border-radius: 8px; outline: none; transition: border-color 0.15s; }
+.city-input:focus { border-color: var(--black); }
+.btn-suggest { padding: 14px 24px; background: var(--black); color: #fff; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.15s; }
+.btn-suggest:hover { background: #333; }
+.btn-suggest:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── CITY TAGS ── */
+.tags-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.city-tag { display: flex; align-items: center; gap: 6px; background: var(--black); color: #fff; padding: 7px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+.city-tag .tag-remove { cursor: pointer; opacity: 0.6; font-size: 15px; line-height: 1; transition: opacity 0.15s; }
+.city-tag .tag-remove:hover { opacity: 1; }
+.add-city-wrap { display: flex; gap: 8px; align-items: center; }
+.add-city-input { font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 20px; outline: none; width: 160px; }
+.add-city-input:focus { border-color: var(--black); }
+.btn-add-city { padding: 7px 14px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.btn-add-city:hover { background: var(--black); color: #fff; }
+
+/* ── MODUS ── */
+.modus-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.modus-card { border: 2px solid var(--border); border-radius: 10px; padding: 20px; cursor: pointer; transition: all 0.15s; text-align: left; background: var(--white); }
+.modus-card:hover { border-color: #999; }
+.modus-card.selected { border-color: var(--black); background: var(--black); }
+.modus-card.selected .modus-name { color: #fff; }
+.modus-card.selected .modus-desc { color: #aaa; }
+.modus-name { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.modus-badge { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; margin-bottom: 8px; }
+.modus-card:not(.selected) .modus-badge { background: var(--green-pale); color: var(--green); }
+.modus-card.selected .modus-badge { background: #333; color: var(--green-light); }
+.modus-desc { font-size: 13px; color: var(--text-mid); line-height: 1.5; }
+
+/* ── SLIDER ── */
+.slider-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.slider-desc { font-size: 13px; color: var(--text-mid); margin-top: 8px; min-height: 20px; }
+input[type=range] { width: 100%; height: 6px; -webkit-appearance: none; background: linear-gradient(to right, var(--black) 0%, var(--black) 50%, var(--border) 50%, var(--border) 100%); border-radius: 3px; outline: none; cursor: pointer; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--black); cursor: pointer; }
+
+/* ── START BUTTON ── */
+.btn-start { width: 100%; padding: 18px; background: var(--black); color: #fff; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: background 0.15s; }
+.btn-start:hover { background: #333; }
+.btn-start:disabled { background: #bbb; cursor: not-allowed; }
+
+/* ── PROGRESS ── */
+.progress-box { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 28px 32px; margin-bottom: 32px; display: none; }
+.progress-box.active { display: block; }
+.progress-spinner-row { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.progress-spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-text { font-size: 15px; color: var(--text-mid); }
+.progress-bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--black); border-radius: 2px; transition: width 0.8s ease; width: 0%; }
+
+/* ── STATUS ── */
+.status-msg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+.status-msg.err { color: var(--red); font-weight: 600; }
+.status-msg.ok { color: var(--green); font-weight: 600; }
+
+/* ── DISCLAIMER ── */
+.disclaimer { background: #fffbe6; border: 1.5px solid #e8c840; border-left: 4px solid #c8a800; border-radius: 8px; padding: 14px 20px; margin-bottom: 28px; font-size: 13px; line-height: 1.6; color: #5a4a00; }
+
+/* ── BRANCHEN ── */
+.branchen-panel { margin-bottom: 32px; }
+.branchen-hdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.branchen-title { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.branchen-period { font-size: 11px; color: var(--text-muted); font-style: italic; }
+.branchen-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.branche-card { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--green); }
+.branche-card.moderat { border-left-color: var(--green-light); }
+.branche-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.branche-name { font-size: 13px; font-weight: 600; }
+.branche-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 20px; }
+.badge-stark { background: #1e5c1e; color: #fff; }
+.badge-moderat { background: var(--green-light); color: #3a5a1a; }
+.branche-text { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+/* ── LEADS ── */
+.leads-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1.5px solid var(--border); margin-bottom: 20px; }
+.leads-count { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.btn-pdf { padding: 8px 16px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.btn-pdf:hover { background: var(--black); color: #fff; }
+
+/* ── LEAD CARD ── */
+.lead-card { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 22px; margin-bottom: 14px; border-left: 4px solid var(--black); }
+.lead-card.mittel { border-left-color: #ccc; }
+.lead-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.lead-name { font-family: 'EB Garamond', serif; font-size: 22px; font-weight: 500; line-height: 1.2; }
+.lead-branche { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.lead-right { text-align: right; flex-shrink: 0; margin-left: 16px; }
+.lead-ort { font-size: 12px; color: var(--text-muted); }
+.lead-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; margin-top: 5px; }
+.lead-badge.hoch { background: var(--black); color: #fff; }
+.lead-badge.mittel { background: #eee; color: #666; }
+
+.slbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 14px 0 6px; }
+.signal-list { display: flex; flex-direction: column; gap: 6px; }
+.signal-item { background: var(--bg); border-left: 3px solid var(--black); border-radius: 0 5px 5px 0; padding: 9px 13px; font-size: 13px; line-height: 1.5; }
+.signal-src { font-size: 11px; margin-top: 4px; color: var(--text-muted); }
+.signal-src a { color: var(--text-mid); text-decoration: underline; word-break: break-all; }
+.warum-box { background: #eef2fa; border-left: 3px solid var(--blue); border-radius: 0 5px 5px 0; padding: 10px 14px; font-size: 13px; line-height: 1.6; color: #1a2e50; }
+
+.contact-row { background: var(--bg); border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
+.clbl { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
+.cval { font-size: 12px; font-weight: 600; color: var(--text); }
+.cval a { color: var(--text); text-decoration: none; }
+.cmuted { font-size: 12px; color: #ccc; font-style: italic; }
+
+.btn-screening { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 8px 16px; background: var(--white); color: var(--black); border: 1.5px solid var(--black); border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
+.btn-screening:hover { background: var(--black); color: #fff; }
+
+/* ── MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: #fff; border-radius: 10px; max-width: 780px; width: 100%; max-height: 88vh; display: flex; flex-direction: column; }
+.modal-hdr { background: var(--black); padding: 18px 24px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.modal-hdr-title { font-family: 'EB Garamond', serif; font-size: 18px; color: #fff; }
+.modal-hdr-btns { display: flex; gap: 8px; }
+.btn-modal-print { padding: 7px 14px; background: var(--green-light); color: var(--black); border: none; border-radius: 5px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+.btn-modal-close { background: none; border: none; color: #666; font-size: 22px; cursor: pointer; line-height: 1; }
+.btn-modal-close:hover { color: #fff; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-loading { text-align: center; padding: 48px; color: var(--text-muted); }
+.modal-spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--black); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+
+/* Screening content */
+.sc-section { margin-bottom: 24px; }
+.sc-title { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px; }
+.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.sc-card { background: var(--bg); border-radius: 6px; padding: 12px 14px; }
+.sc-card-title { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); margin-bottom: 5px; }
+.sc-card p { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+.sc-highlight { background: #fffef5; border: 1px solid #e0d890; border-radius: 8px; padding: 14px 18px; }
+.sc-highlight-title { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #b89a00; margin-bottom: 6px; }
+.sc-highlight p { font-size: 13px; line-height: 1.6; color: var(--text-mid); font-style: italic; }
+.sc-badge { display: inline-block; font-size: 10px; padding: 3px 9px; border-radius: 4px; border: 1px solid currentColor; margin-top: 6px; }
+.reife-dots { display: flex; gap: 4px; margin-top: 8px; }
+.reife-dot { width: 24px; height: 5px; border-radius: 2px; background: var(--border); }
+.reife-dot.active { background: var(--black); }
+.swatches { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.swatch { width: 22px; height: 22px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+.presse-item { border-left: 2px solid var(--border); padding: 8px 12px; margin-bottom: 8px; font-size: 12px; line-height: 1.5; }
+.presse-datum { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
+.presse-titel { font-weight: 600; margin-bottom: 2px; }
+.presse-text { color: var(--text-mid); }
+.quellen-list { display: flex; flex-direction: column; gap: 4px; }
+.quellen-list a { font-size: 12px; color: var(--green); word-break: break-all; }
+
+/* ── PRINT ── */
+@media print {
+  .hdr, .step-panel, .progress-box, .disclaimer, .leads-bar, .btn-screening { display: none !important; }
+  .lead-card { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
 
 <div class="hdr">
-  <h1>MYWORKSPACE &mdash; Lead-Finder</h1>
-  <div class="hdr-right">Aussendienst-Tool &nbsp; v6.0</div>
+  <div class="hdr-brand">MY<span>WORKSPACE</span> &mdash; Lead-Finder</div>
+  <div class="hdr-sub">Aussendienst-Tool</div>
 </div>
 
-<div class="page">
-  <div class="top-row">
-    <div class="panel">
-      <div class="panel-title">Suchparameter</div>
-      <div class="field">
-        <label class="lbl">Stadt oder PLZ</label>
-        <input type="text" id="location" placeholder="z.B. Koeln oder 53757" />
-      </div>
-      <div class="field">
-        <label class="lbl">Radius</label>
-        <select id="radius">
-          <option value="10">10 km</option>
-          <option value="25" selected>25 km</option>
-          <option value="50">50 km</option>
-          <option value="75">75 km</option>
-          <option value="100">100 km</option>
-        </select>
-      </div>
-      <hr>
-      <div class="field">
-        <label class="lbl">API-Key</label>
-        <div class="key-wrap">
-          <input type="password" id="apikey" placeholder="sk-ant-..." />
-          <button class="btn-clear-key" onclick="clearKey()">loeschen</button>
-        </div>
-        <div class="key-saved" id="keysaved"></div>
-      </div>
-      <button class="btn-search" id="searchbtn" onclick="doSearch()">Region analysieren</button>
-      <div class="progress-wrap" id="progressWrap">
-        <div class="spinner-row">
-          <div class="spinner"></div>
-          <div class="progress-label" id="progressLabel">Analyse laeuft...</div>
-        </div>
-        <div class="progress-bar-track">
-          <div class="progress-bar-fill" id="progressBar"></div>
-        </div>
-      </div>
-      <div class="status" id="status"></div>
-    </div>
+<div class="main">
 
-    <div class="info-panel">
-      <h3>Was macht dieses Tool?</h3>
-      <p>Der Lead-Finder analysiert Branchen mit aktuellem wirtschaftlichem Rueckenwind und identifiziert Unternehmen in deiner Region bei denen Investitionsbereitschaft und Veraenderungsdruck zusammentreffen.</p>
-      <p>Nicht wer generell interessant ist, sondern wer <strong style="color:#fff">heute die Mittel und den Anlass hat</strong> in eine neue Arbeitsumgebung zu investieren.</p>
-      <div class="info-sep"></div>
-      <div class="info-sub">Analysezeitraum</div>
-      <p>Dynamisch: immer die letzten 12 Monate ab heute.</p>
-      <div class="info-sep"></div>
-      <div class="info-sub">Datenquellen</div>
-      <span class="tag">DAX / TecDAX / SDAX</span>
-      <span class="tag">ifo / ZEW</span>
-      <span class="tag">KfW / BAFA</span>
-      <span class="tag">Presse & Handelsregister</span>
-      <div class="info-sep"></div>
-      <div class="info-sub">Zielgruppe</div>
-      <p>Inhabergefuehrte Mittelstaendler mit 100–500 Mitarbeitern, bei denen mindestens 30–40% der Belegschaft an Bueroplaetzen arbeiten – egal ob klassische Buerobranche oder unerwarteter Sektor.</p>
+  <!-- STEP 1: Stadt -->
+  <div class="step active" id="step1">
+    <div class="step-num">Schritt 1 von 4</div>
+    <div class="step-title">Wo suchst du?</div>
+    <div class="step-desc">Gib deine Stadt ein – das Tool schlägt die passende Wirtschaftsregion vor.</div>
+    <div class="city-input-wrap">
+      <input type="text" class="city-input" id="cityInput" placeholder="z.B. Köln, Hannover, Berlin..." />
+      <button class="btn-suggest" id="btnSuggest" onclick="suggestRegion()">Region vorschlagen</button>
+    </div>
+    <div class="status-msg" id="step1Status"></div>
+  </div>
+
+  <!-- STEP 2: Region bestätigen -->
+  <div class="step" id="step2">
+    <div class="step-num">Schritt 2 von 4</div>
+    <div class="step-title">Deine Suchregion</div>
+    <div class="step-desc">Diese Städte werden durchsucht. Du kannst Städte entfernen oder weitere hinzufügen.</div>
+    <div class="tags-wrap" id="tagsWrap"></div>
+    <div class="add-city-wrap">
+      <input type="text" class="add-city-input" id="addCityInput" placeholder="Stadt hinzufügen..." />
+      <button class="btn-add-city" onclick="addCity()">+ Hinzufügen</button>
     </div>
   </div>
 
-  <div class="disclaimer">
-    &#9888;&nbsp;<strong>KI-generierte Ergebnisse &ndash; zur eigenen Einschaetzung.</strong>
-    Diese Liste wird automatisch per KI-Websuche erstellt und kann Fehler oder Ungenauigkeiten enthalten. Bitte alle Quellen selbst pruefen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.
+  <!-- STEP 3: Modus -->
+  <div class="step" id="step3">
+    <div class="step-num">Schritt 3 von 4</div>
+    <div class="step-title">Wen suchst du?</div>
+    <div class="step-desc">Wähle den passenden Suchtyp für dein Gebiet.</div>
+    <div class="modus-cards">
+      <button class="modus-card selected" id="modusMittelstand" onclick="selectModus('mittelstand')">
+        <div class="modus-badge">100–500 MA</div>
+        <div class="modus-name">Mittelstand</div>
+        <div class="modus-desc">Inhabergeführte Unternehmen – der Chef entscheidet selbst. Direkte Aufträge ohne langen Entscheidungsweg.</div>
+      </button>
+      <button class="modus-card" id="modusGrosskunde" onclick="selectModus('grosskunde')">
+        <div class="modus-badge">500+ MA</div>
+        <div class="modus-name">Großkunden-Einstieg</div>
+        <div class="modus-desc">Größere Unternehmen mit Potenzial für Teilprojekte. Ein kleiner Auftrag als Türöffner für mehr.</div>
+      </button>
+    </div>
   </div>
 
-  <div id="branchen-container"></div>
+  <!-- STEP 4: Slider + Start -->
+  <div class="step" id="step4">
+    <div class="step-num">Schritt 4 von 4</div>
+    <div class="step-title">Wie genau soll gesucht werden?</div>
+    <div class="step-desc">Wenige sichere Treffer oder mehr Ergebnisse – auch wenn nicht alle perfekt passen.</div>
+    <div class="slider-labels">
+      <span>Wenige, sichere Treffer</span>
+      <span>Viele, auch unsichere</span>
+    </div>
+    <input type="range" min="0" max="2" value="1" id="strictSlider" oninput="updateSlider()" />
+    <div class="slider-desc" id="sliderDesc">Ausgewogen – GmbH bevorzugt, mittlere Signale reichen</div>
+    <br><br>
+    <button class="btn-start" id="btnStart" onclick="startSearch()">Jetzt Firmen suchen</button>
+    <div class="status-msg" id="searchStatus"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-box" id="progressBox">
+    <div class="progress-spinner-row">
+      <div class="progress-spinner"></div>
+      <div class="progress-text" id="progressText">Analyse läuft...</div>
+    </div>
+    <div class="progress-bar-track"><div class="progress-bar-fill" id="progressBar"></div></div>
+  </div>
+
+  <!-- RESULTS -->
   <div id="results"></div>
+
 </div>
 
-<!-- Modal -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal" id="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle">Firmenprofil</div>
-      <div class="modal-header-btns">
-        <button class="btn-modal-pdf" onclick="printModal()">&#8595; Als PDF</button>
-        <button class="btn-modal-close" onclick="closeModalDirect()">&#x2715;</button>
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title" id="modalTitle">Firmenprofil</div>
+      <div class="modal-hdr-btns">
+        <button class="btn-modal-print" onclick="printScreening()">&#8595; PDF</button>
+        <button class="btn-modal-close" onclick="closeModal()">&#x2715;</button>
       </div>
     </div>
     <div class="modal-body" id="modalBody">
-      <div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert...</div>
+      <div class="modal-loading"><div class="modal-spinner"></div>Wird recherchiert...</div>
     </div>
   </div>
 </div>
 
 <script>
+var selectedCities = [];
+var selectedModus = 'mittelstand';
 var progressInterval = null;
+var lastScreeningData = null;
 
-(function(){
+// ── STEP 1: Region suggest ──
+async function suggestRegion() {
+  var city = document.getElementById('cityInput').value.trim();
+  if (!city) { alert('Bitte eine Stadt eingeben.'); return; }
+  var apiKey = getKey();
+  if (!apiKey) return;
+
+  var btn = document.getElementById('btnSuggest');
+  var st = document.getElementById('step1Status');
+  btn.disabled = true;
+  btn.textContent = 'Wird ermittelt...';
+  st.textContent = '';
+
   try {
-    var k = localStorage.getItem('mw_lf_key');
-    if (k) { document.getElementById('apikey').value = k; document.getElementById('keysaved').textContent = 'Key gespeichert.'; }
-  } catch(e) {}
-})();
-
-function saveKey(k) { try { localStorage.setItem('mw_lf_key', k); document.getElementById('keysaved').textContent = 'Key gespeichert.'; } catch(e) {} }
-function clearKey() {
-  if (!confirm('API-Key wirklich loeschen?')) return;
-  try { localStorage.removeItem('mw_lf_key'); } catch(e) {}
-  document.getElementById('apikey').value = '';
-  document.getElementById('keysaved').textContent = '';
+    var resp = await fetch('/api/region', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: apiKey, city: city })
+    });
+    var data = await resp.json();
+    if (data.error) { st.className = 'status-msg err'; st.textContent = 'Fehler: ' + (data.error.message || data.error); btn.disabled = false; btn.textContent = 'Region vorschlagen'; return; }
+    selectedCities = data.cities || [city];
+    renderTags();
+    activateStep('step2');
+    activateStep('step3');
+    activateStep('step4');
+  } catch(e) {
+    st.className = 'status-msg err'; st.textContent = 'Fehler: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Region vorschlagen';
 }
 
+function renderTags() {
+  var wrap = document.getElementById('tagsWrap');
+  wrap.innerHTML = selectedCities.map(function(c, i) {
+    return '<div class="city-tag">'+esc(c)+'<span class="tag-remove" onclick="removeCity('+i+')">&times;</span></div>';
+  }).join('');
+}
+function removeCity(i) { selectedCities.splice(i, 1); renderTags(); }
+function addCity() {
+  var inp = document.getElementById('addCityInput');
+  var v = inp.value.trim();
+  if (v && !selectedCities.includes(v)) { selectedCities.push(v); renderTags(); }
+  inp.value = '';
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.activeElement.id === 'addCityInput') addCity();
+  if (e.key === 'Enter' && document.activeElement.id === 'cityInput') suggestRegion();
+});
+
+// ── STEP 3: Modus ──
+function selectModus(m) {
+  selectedModus = m;
+  document.getElementById('modusMittelstand').classList.toggle('selected', m === 'mittelstand');
+  document.getElementById('modusGrosskunde').classList.toggle('selected', m === 'grosskunde');
+}
+
+// ── STEP 4: Slider ──
+var sliderLabels = ['Wenige, sichere Treffer – nur klare GmbH mit starken Signalen', 'Ausgewogen – GmbH bevorzugt, mittlere Signale reichen', 'Viele Treffer – auch vagere Ergebnisse werden angezeigt'];
+var sliderValues = ['streng', 'ausgewogen', 'breit'];
+function updateSlider() {
+  var v = parseInt(document.getElementById('strictSlider').value);
+  document.getElementById('sliderDesc').textContent = sliderLabels[v];
+  var pct = (v / 2 * 100) + '%';
+  document.getElementById('strictSlider').style.background = 'linear-gradient(to right, var(--black) 0%, var(--black) '+pct+', var(--border) '+pct+', var(--border) 100%)';
+}
+updateSlider();
+
+// ── STEP helpers ──
+function activateStep(id) { document.getElementById(id).classList.add('active'); }
+
+// ── KEY ──
+function getKey() {
+  var k = localStorage.getItem('mw_lf_key2');
+  if (k) return k;
+  k = prompt('Bitte deinen API-Key eingeben (sk-ant-...):');
+  if (k) { localStorage.setItem('mw_lf_key2', k); return k; }
+  return null;
+}
+
+// ── PROGRESS ──
 function startProgress() {
-  var wrap = document.getElementById('progressWrap');
+  var box = document.getElementById('progressBox');
   var bar = document.getElementById('progressBar');
-  var label = document.getElementById('progressLabel');
-  wrap.classList.add('active');
+  var txt = document.getElementById('progressText');
+  box.classList.add('active');
   bar.style.width = '0%';
   var steps = [
-    { pct: 12, text: 'Boersen- und Konjunkturdaten werden analysiert...' },
-    { pct: 28, text: 'Regionale Branchenstaerken werden ermittelt...' },
-    { pct: 45, text: 'Unternehmen in der Region werden recherchiert...' },
-    { pct: 62, text: 'Triggersignale und Quellen werden geprueft...' },
-    { pct: 78, text: 'Investitionsbereitschaft wird bewertet...' },
-    { pct: 90, text: 'Ergebnisse werden aufbereitet...' },
-    { pct: 96, text: 'Fast fertig...' }
+    {pct:10, text:'Wirtschaftsregion wird analysiert...'},
+    {pct:25, text:'Starke Branchen werden ermittelt...'},
+    {pct:40, text:'Unternehmen werden recherchiert...'},
+    {pct:58, text:'Signale und Quellen werden geprüft...'},
+    {pct:74, text:'Ansprechpartner werden gesucht...'},
+    {pct:88, text:'Ergebnisse werden aufbereitet...'},
+    {pct:95, text:'Fast fertig...'}
   ];
   var i = 0;
   progressInterval = setInterval(function() {
-    if (i < steps.length) { bar.style.width = steps[i].pct + '%'; label.textContent = steps[i].text; i++; }
-  }, 15000);
+    if (i < steps.length) { bar.style.width = steps[i].pct + '%'; txt.textContent = steps[i].text; i++; }
+  }, 10000);
 }
-
 function stopProgress(ok) {
   clearInterval(progressInterval);
-  var wrap = document.getElementById('progressWrap');
-  var bar = document.getElementById('progressBar');
-  bar.style.width = ok ? '100%' : '0%';
-  setTimeout(function(){ wrap.classList.remove('active'); }, 600);
+  document.getElementById('progressBar').style.width = ok ? '100%' : '0%';
+  setTimeout(function() { document.getElementById('progressBox').classList.remove('active'); }, 600);
 }
 
-function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ── SEARCH ──
+async function startSearch() {
+  if (!selectedCities.length) { alert('Bitte zuerst eine Region auswählen.'); return; }
+  var apiKey = getKey();
+  if (!apiKey) return;
+  var strictness = sliderValues[parseInt(document.getElementById('strictSlider').value)];
 
-function fmtUrl(url) {
-  if (!url) return null;
-  var s = String(url).trim();
-  return s.indexOf('http') === 0 ? s : null;
+  var btn = document.getElementById('btnStart');
+  var st = document.getElementById('searchStatus');
+  document.getElementById('results').innerHTML = '';
+  btn.disabled = true; st.className = 'status-msg'; st.textContent = '';
+  startProgress();
+
+  try {
+    var resp = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: apiKey, cities: selectedCities, modus: selectedModus, strictness: strictness })
+    });
+    var data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      stopProgress(false);
+      var msg = (data.error && (data.error.message || data.error)) || resp.status;
+      if (msg === 'overloaded') msg = 'Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
+      if (msg === 'no_results') msg = 'Keine Ergebnisse gefunden. Versuche einen größeren Suchbereich oder den Modus „Großkunden-Einstieg".';
+      st.className = 'status-msg err'; st.textContent = msg;
+      btn.disabled = false; return;
+    }
+
+    var parsed = extractData(data._jsonText);
+    stopProgress(true);
+
+    if (!parsed) { st.className = 'status-msg err'; st.textContent = 'Keine Ergebnisse. Bitte erneut versuchen.'; btn.disabled = false; return; }
+
+    var branchen = parsed.branchen || [];
+    var leads = parsed.leads || [];
+
+    renderResults(branchen, leads, data._dateRange, data._staedte);
+
+    if (leads.length) {
+      var hoch = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; }).length;
+      st.className = 'status-msg ok';
+      st.textContent = leads.length + ' ' + (leads.length === 1 ? 'Ergebnis' : 'Ergebnisse') + ' – ' + hoch + ' mit hoher Priorität.';
+    } else {
+      st.className = 'status-msg err';
+      st.textContent = 'Keine passenden Firmen gefunden. Versuche den Slider weiter nach rechts oder wähle „Großkunden-Einstieg".';
+    }
+
+  } catch(err) {
+    stopProgress(false);
+    st.className = 'status-msg err'; st.textContent = 'Verbindungsfehler: ' + err.message;
+  }
+  btn.disabled = false;
 }
 
-function isNA(v) { if (!v) return true; var x = String(v).toLowerCase().trim(); return !x||x==='nicht oeffentlich'||x==='nicht öffentlich'||x==='unbekannt'||x==='n/a'||x==='-'||x==='keine angabe'; }
-
+// ── RENDER ──
 function extractData(raw) {
   if (!raw) return null;
   var text = raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
@@ -287,197 +472,189 @@ function extractData(raw) {
   return null;
 }
 
-function renderBranchen(branchen, dateRange, staedte) {
-  if (!branchen || !branchen.length) return;
-  var el = document.getElementById('branchen-container');
-  var items = branchen.map(function(b) {
-    var stark = (b.staerke||'').toLowerCase() === 'stark';
-    return '<div class="branche-item'+(stark?'':' moderat')+'">'
-      +'<div class="branche-top">'
-      +'<div class="branche-name">'+esc(b.name)+'</div>'
-      +'<span class="branche-badge '+(stark?'badge-stark':'badge-moderat')+'">'+esc(b.staerke||'moderat')+'</span>'
-      +'</div>'
-      +'<div class="branche-begruendung">'+esc(b.begruendung)+'</div>'
-      +'</div>';
-  }).join('');
-
-  el.innerHTML = '<div class="branchen-panel">'
-    +'<div class="branchen-header">'
-    +'<div class="branchen-title">Regionale Branchenanalyse</div>'
-    +'<div class="branchen-periode">'+esc(dateRange||'Letzte 12 Monate')+(staedte?'<br><span style="font-size:10px">Abgedeckte Region: '+esc(staedte)+'</span>':'')+'</div>'
-    +'</div>'
-    +'<div class="branchen-grid">'+items+'</div>'
-    +'</div>';
-}
-
-function renderTriggers(triggers) {
-  if (!triggers || !triggers.length) return '';
-  return triggers.map(function(t) {
-    var url = fmtUrl(t.quelleUrl);
-    var srcHtml = url
-      ? '<div class="trigger-src">Quelle: <a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>'
-      : '';
-    return '<div class="trigger-item">'+esc(t.beschreibung||t)+srcHtml+'</div>';
-  }).join('');
-}
-
-function renderContact(c) {
-  if (!c) return '';
-  var tel = isNA(c.telefon) ? '<span class="cmuted">–</span>' : '<a href="tel:'+esc(c.telefon)+'" class="cval">'+esc(c.telefon)+'</a>';
-  var mail = isNA(c.email) ? '<span class="cmuted">–</span>' : '<a href="mailto:'+esc(c.email)+'" class="cval">'+esc(c.email)+'</a>';
-  return '<div class="contact-item"><div><div class="clbl">Name</div><div class="cval">'+esc(c.name||'–')+'</div></div><div><div class="clbl">Funktion</div><div class="cval">'+esc(c.funktion||'–')+'</div></div><div><div class="clbl">Telefon</div>'+tel+'</div><div><div class="clbl">E-Mail</div>'+mail+'</div></div>';
-}
-
-function renderLeads(leads) {
+function renderResults(branchen, leads, dateRange, staedte) {
   var el = document.getElementById('results');
-  var hoch = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; });
-  var sorted = hoch.concat(leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()!=='hoch'; }));
-  var bar = '<div class="results-bar"><div class="results-count">'+sorted.length+' Lead'+(sorted.length!==1?'s':'')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
-  window._leads = sorted;
-  var cards = sorted.map(function(l, idx) {
-    var prio = (l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
-    var triggers = l.triggersignale || [];
-    if (!triggers.length && l.trigger) triggers = [{ beschreibung: l.trigger, quelleUrl: l.triggerQuelle }];
-    var triggersHtml = triggers.length ? '<div class="slbl">Trigger-Signale</div><div class="trigger-list">'+renderTriggers(triggers)+'</div>' : '';
-    var warumHtml = l.warumJetzt ? '<div class="slbl">Warum jetzt</div><div class="warum">'+esc(l.warumJetzt)+'</div>' : '';
-    var rueckenwindHtml = l.branchenrueckenwind ? '<div class="slbl">Branchenrueckenwind</div><div class="rueckenwind">'+esc(l.branchenrueckenwind)+'</div>' : '';
-    var contacts = [];
-    if (Array.isArray(l.ansprechpartner)) contacts = l.ansprechpartner;
-    else if (l.ansprechpartner && typeof l.ansprechpartner==='object') contacts = [l.ansprechpartner];
-    else if (l.ansprechpartner && !isNA(l.ansprechpartner)) contacts = [{name:l.ansprechpartner,funktion:'',telefon:'',email:''}];
-    var contactsHtml = contacts.length
-      ? '<div class="slbl">Ansprechpartner</div><div class="contacts-list">'+contacts.map(renderContact).join('')+'</div>'
-      : '<div class="slbl">Ansprechpartner</div><div class="contacts-list"><div class="contact-item" style="grid-template-columns:1fr"><div><div class="clbl">Hinweis</div><div class="cval" style="font-weight:400;color:var(--text-muted)">Recherche ueber LinkedIn, Impressum oder Handelsregister empfohlen</div></div></div></div>';
-    return '<div class="card prio-'+prio+'">'
-      +'<div class="card-head"><div><div class="card-name">'+esc(l.name)+'</div><div class="card-branch">'+esc(l.branche)+'</div></div><div class="card-right"><div class="card-ort">'+esc(l.ort)+'</div><span class="badge badge-'+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
-      +triggersHtml+warumHtml+rueckenwindHtml+contactsHtml
-      +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">'
-      +'<button class="btn-info" onclick="openModal('+idx+')">&#8599;&nbsp; Firmenprofil recherchieren</button>'
-      +'</div>'
-      +'</div>';
-  }).join('');
-  el.innerHTML = bar + cards;
+  var html = '';
+
+  // Disclaimer
+  html += '<div class="disclaimer">&#9888;&nbsp;<strong>KI-generierte Ergebnisse – zur eigenen Einschätzung.</strong> Bitte alle Quellen selbst prüfen. Die Ergebnisse sind eine Ideengrundlage, kein verifizierter Kundenauftrag.</div>';
+
+  // Branchen
+  if (branchen.length) {
+    html += '<div class="branchen-panel"><div class="branchen-hdr"><div class="branchen-title">Starke Branchen in deiner Region</div><div class="branchen-period">' + esc(dateRange||'') + (staedte ? '<br><span style="font-size:10px">'+esc(staedte)+'</span>' : '') + '</div></div><div class="branchen-grid">';
+    branchen.forEach(function(b) {
+      var stark = (b.staerke||'').toLowerCase() === 'stark';
+      html += '<div class="branche-card'+(stark?'':' moderat')+'"><div class="branche-top"><div class="branche-name">'+esc(b.name)+'</div><span class="branche-badge '+(stark?'badge-stark':'badge-moderat')+'">'+esc(b.staerke||'')+'</span></div><div class="branche-text">'+esc(b.begruendung)+'</div></div>';
+    });
+    html += '</div></div>';
+  }
+
+  // Leads
+  if (leads.length) {
+    var hoch = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; });
+    var sorted = hoch.concat(leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()!=='hoch'; }));
+    window._leads = sorted;
+
+    html += '<div class="leads-bar"><div class="leads-count">'+sorted.length+' '+(sorted.length===1?'Ergebnis':'Ergebnisse')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
+
+    sorted.forEach(function(l, idx) {
+      var prio = (l.prioritaet||'').toLowerCase() === 'hoch' ? 'hoch' : 'mittel';
+      var signals = l.signale || [];
+      if (!signals.length && l.trigger) signals = [{text: l.trigger, url: l.triggerQuelle}];
+
+      var signalsHtml = signals.map(function(s) {
+        var url = s.url && s.url.indexOf('http') === 0 ? s.url : null;
+        return '<div class="signal-item">'+esc(s.text||s.beschreibung||'')+(url ? '<div class="signal-src">Quelle: <a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>' : '')+'</div>';
+      }).join('');
+
+      var ap = l.ansprechpartner || {};
+      var apName = ap.name || 'nicht öffentlich';
+      var apFkt = ap.funktion || '–';
+      var apTel = ap.telefon && !isNA(ap.telefon) ? '<a href="tel:'+esc(ap.telefon)+'" class="cval">'+esc(ap.telefon)+'</a>' : '<span class="cmuted">–</span>';
+      var apMail = ap.email && !isNA(ap.email) ? '<a href="mailto:'+esc(ap.email)+'" class="cval">'+esc(ap.email)+'</a>' : '<span class="cmuted">–</span>';
+
+      html += '<div class="lead-card '+prio+'">'
+        +'<div class="lead-head"><div><div class="lead-name">'+esc(l.name)+'</div><div class="lead-branche">'+esc(l.branche)+'</div></div><div class="lead-right"><div class="lead-ort">'+esc(l.ort)+'</div><span class="lead-badge '+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
+        +'<div class="slbl">Was wurde gefunden</div><div class="signal-list">'+signalsHtml+'</div>'
+        +(l.warumJetzt ? '<div class="slbl">Warum jetzt</div><div class="warum-box">'+esc(l.warumJetzt)+'</div>' : '')
+        +'<div class="slbl">Ansprechpartner</div><div class="contact-row"><div><div class="clbl">Name</div><div class="cval">'+esc(apName)+'</div></div><div><div class="clbl">Funktion</div><div class="cval">'+esc(apFkt)+'</div></div><div><div class="clbl">Telefon</div>'+apTel+'</div><div><div class="clbl">E-Mail</div>'+apMail+'</div></div>'
+        +'<button class="btn-screening" onclick="openScreening('+idx+')">&#8599;&nbsp; Vollständiges Firmenprofil</button>'
+        +'</div>';
+    });
+  }
+
+  el.innerHTML = html;
 }
 
-async function doSearch() {
-  var location = document.getElementById('location').value.trim();
-  var radius = document.getElementById('radius').value;
-  var apiKey = document.getElementById('apikey').value.trim();
-  if (!location) { alert('Bitte Stadt oder PLZ eingeben.'); return; }
-  if (!apiKey) { alert('Bitte den API-Key eingeben.'); return; }
-  saveKey(apiKey);
+// ── SCREENING MODAL ──
+async function openScreening(idx) {
+  var lead = window._leads[idx];
+  if (!lead) return;
+  var apiKey = getKey();
+  if (!apiKey) return;
 
-  var btn = document.getElementById('searchbtn');
-  var st = document.getElementById('status');
-  document.getElementById('results').innerHTML = '';
-  document.getElementById('branchen-container').innerHTML = '';
-  btn.disabled = true;
-  st.className = 'status';
-  st.textContent = '';
-  startProgress();
+  lastScreeningData = null;
+  document.getElementById('modalTitle').textContent = lead.name + ' – Firmenprofil';
+  document.getElementById('modalBody').innerHTML = '<div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert – bitte 20–30 Sekunden warten...</div>';
+  document.getElementById('modalOverlay').classList.add('active');
 
   try {
-    var resp = await fetch('/api/search', {
+    var resp = await fetch('/api/company', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey: apiKey, location: location, radius: radius })
+      body: JSON.stringify({ apiKey: apiKey, name: lead.name, ort: lead.ort, branche: lead.branche, modus: selectedModus })
     });
-
     var data = await resp.json();
-
-    if (!resp.ok || data.error) {
-      stopProgress(false);
-      st.className = 'status err';
-      var errMsg = (data.error && (data.error.message || data.error)) || resp.status;
-      if (errMsg === 'overloaded' || String(errMsg).toLowerCase().indexOf('overload') !== -1) {
-        st.textContent = 'Der KI-Server ist gerade ueberlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
-      } else {
-        st.textContent = 'Fehler: ' + errMsg;
-      }
-      btn.disabled = false; return;
-    }
-
-    var parsed = extractData(data._jsonText);
-
-    if (!parsed || (!parsed.leads && !parsed.branchen)) {
-      stopProgress(false);
-      st.className = 'status err';
-      st.textContent = 'Keine Ergebnisse. Bitte erneut versuchen.';
-      var rawPreview = (data._jsonText||'').substring(0,500);
-      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;color:#333;">Raw JSON Text (erste 500 Zeichen):\n'+rawPreview.replace(/</g,'&lt;')+'</pre>';
-      btn.disabled = false; return;
-    }
-
-    var branchen = parsed.branchen || [];
-    var leads = parsed.leads || [];
-
-    stopProgress(true);
-
-    if (branchen.length) renderBranchen(branchen, data._dateRange, data._staedte);
-
-    if (leads.length) {
-      var hochCount = leads.filter(function(l){ return (l.prioritaet||'').toLowerCase()==='hoch'; }).length;
-      st.className = 'status ok';
-      st.textContent = leads.length+' Lead'+(leads.length!==1?'s':'')+' gefunden – '+hochCount+' mit hoher Prioritaet.';
-      renderLeads(leads);
-    } else {
-      st.className = 'status err';
-      st.textContent = 'Keine Leads gefunden.';
-      var d = data._debug || {};
-      document.getElementById('results').innerHTML = '<pre style="background:#f5f5f5;padding:16px;border-radius:6px;font-size:11px;white-space:pre-wrap;color:#333;max-height:500px;overflow-y:auto;">'
-        + 'RawText Laenge: ' + (d.rawTextLength||0) + '\n\n'
-        + 'Blocks:\n' + JSON.stringify(d.blocks||[], null, 2).replace(/</g,'&lt;').substring(0,1000)
-        + '\n\nRaw Preview:\n' + (d.rawPreview||'leer').replace(/</g,'&lt;')
-        + '</pre>';
-    }
-
-  } catch(err) {
-    stopProgress(false);
-    st.className = 'status err';
-    st.textContent = 'Verbindungsfehler: '+err.message;
-  }
-  btn.disabled = false;
-
-function openModal(idx) {
-  var data = window._leads[idx] || {};
-  document.getElementById('modalTitle').textContent = (data.name||'Firma') + ' – Firmenprofil';
-  document.getElementById('modalBody').innerHTML = '<div class="modal-loading"><div class="modal-spinner"></div>Firmenprofil wird recherchiert – bitte 20-30 Sekunden warten...</div>';
-  document.getElementById('modalOverlay').classList.add('active');
-  var apiKey = document.getElementById('apikey').value.trim();
-  if (!apiKey) { document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">Bitte API-Key eingeben.</p>'; return; }
-  fetch('/api/company', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey: apiKey, name: data.name, ort: data.ort, branche: data.branche })
-  }).then(function(r){ return r.json(); }).then(function(d) {
-    if (d.error) {
-      var msg = d.error.message || d.error;
-      if (msg === 'overloaded') msg = 'Der KI-Server ist gerade ueberlastet. Bitte 1-2 Minuten warten und erneut versuchen.';
-      document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">'+esc(msg)+'</p>';
+    if (data.error) {
+      var msg = data.error.message || data.error;
+      if (msg === 'overloaded') msg = 'Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
+      document.getElementById('modalBody').innerHTML = '<p style="color:var(--red);padding:20px">'+esc(msg)+'</p>';
       return;
     }
-    var text = (d._text || '').replace(/\n## /g, '<h2>').replace(/\n### /g, '<h2>').replace(/##/g, '</h2>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-    document.getElementById('modalBody').innerHTML = '<div class="modal-content">'+text+'</div>';
-  }).catch(function(err) {
-    document.getElementById('modalBody').innerHTML = '<p style="color:#b22222;padding:20px">Fehler: '+esc(err.message)+'</p>';
-  });
+    lastScreeningData = data._data;
+    renderScreening(data._data, lead.name);
+  } catch(err) {
+    document.getElementById('modalBody').innerHTML = '<p style="color:var(--red);padding:20px">Fehler: '+esc(err.message)+'</p>';
+  }
 }
 
-function closeModal(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+function renderScreening(d, name) {
+  if (!d) { document.getElementById('modalBody').innerHTML = '<p style="padding:20px;color:var(--text-muted)">Keine Daten gefunden.</p>'; return; }
+
+  var s = d.selbstbild || {};
+  var f = d.fremdbild || {};
+  var w = d.wettbewerb || {};
+  var dr = d.design_reife || {};
+  var b = d.bueroplanung || {};
+  var li = d.linkedin || {};
+  var bg = d.budget || {};
+  var basis = d.basis || {};
+
+  var nwColor = {hoch:'var(--green)',mittel:'#7d5a00',gering:'var(--red)'}[b.new_work_affinitaet] || 'var(--text-muted)';
+  var segColor = {Premium:'var(--green)',Mitte:'#7d5a00',Budget:'var(--red)'}[w.segment] || 'var(--text-muted)';
+  var clusterColor = {Premium:'var(--green)',Mid:'#7d5a00',Einstieg:'var(--text-muted)'}[bg.cluster] || 'var(--text-muted)';
+
+  var swatches = (s.farben && s.farben.hex_codes || []).map(function(h){ return '<div class="swatch" style="background:'+esc(h)+'" title="'+esc(h)+'"></div>'; }).join('');
+  var dots = [1,2,3,4].map(function(i){ return '<div class="reife-dot'+(i<=(dr.stufe||0)?' active':'')+'"></div>'; }).join('');
+
+  var presse = (d.pressespiegel || []).map(function(p){
+    return '<div class="presse-item"><div class="presse-datum">'+esc(p.datum||'')+'</div><div class="presse-titel">'+esc(p.titel||'')+'</div><div class="presse-text">'+esc(p.zusammenfassung||'')+'</div></div>';
+  }).join('') || '<p style="font-size:12px;color:var(--text-muted)">Keine Meldungen gefunden.</p>';
+
+  var kontakte = (d.ansprechpartner || []).map(function(k){
+    return '<div class="sc-card"><div class="sc-card-title">'+esc(k.funktion||'Kontakt')+'</div><p>'+esc(k.name||'–')+(k.telefon&&!isNA(k.telefon)?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')+(k.email&&!isNA(k.email)?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')+'</p></div>';
+  }).join('');
+
+  var quellen = (d.quellen || []).map(function(q){ return '<a href="'+esc(q.url||'#')+'" target="_blank">'+esc(q.label||q.url||'–')+'</a>'; }).join('');
+
+  document.getElementById('modalBody').innerHTML =
+    '<div class="sc-section"><div class="sc-title">Basisdaten</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Adresse</div><p>'+esc(basis.adresse||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Kontakt</div><p>'+(basis.telefon&&!isNA(basis.telefon)?'<a href="tel:'+esc(basis.telefon)+'">'+esc(basis.telefon)+'</a>':'–')+'<br>'+(basis.email&&!isNA(basis.email)?'<a href="mailto:'+esc(basis.email)+'">'+esc(basis.email)+'</a>':'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Website</div><p>'+(basis.website?'<a href="'+esc(basis.website)+'" target="_blank">'+esc(basis.website)+'</a>':'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Gegründet / MA</div><p>'+esc(basis.gruendung||'–')+' &nbsp;/&nbsp; '+esc(basis.mitarbeiter||'–')+'</p></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Ansprechpartner</div><div class="sc-grid">'+kontakte+'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Selbstbild</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Farben</div><p>'+esc(s.farben&&s.farben.beschreibung||'–')+'</p><div class="swatches">'+swatches+'</div></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Typografie</div><p>'+esc(s.typografie||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Bildwelt</div><p>'+esc(s.bildwelt||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Tonalität</div><p>'+esc(s.tonalitaet||'–')+'</p></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Fremdbild</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Bewertungen</div><p>'+esc(f.bewertungen||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Mediale Präsenz</div><p>'+esc(f.medien||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Recruiting-Sprache</div><p>'+esc(f.recruiting||'–')+'</p></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Büroplanung & New Work</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Arbeitskultur</div><p>'+esc(b.arbeitskultur||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Raumbedarf</div><p>'+esc(b.raumbedarf||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Ästhetik</div><p>'+esc(b.aesthetik_praeferenz||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">New Work</div><p>'+esc(b.new_work_begruendung||'–')+'</p><span class="sc-badge" style="color:'+nwColor+'">'+esc(b.new_work_affinitaet||'–')+'</span></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Design-Reife</div>'
+    +'<div class="sc-card" style="max-width:300px"><div class="sc-card-title">Stufe '+(dr.stufe||'–')+' – '+esc(dr.stufe_label||'–')+'</div><p>'+esc(dr.begruendung||'–')+'</p><div class="reife-dots">'+dots+'</div></div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Wachstum & LinkedIn</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Unternehmensgröße</div><p>'+esc(li.groesse||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Wachstumstrend</div><p>'+esc(li.wachstum_begruendung||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Offene Stellen</div><p>'+esc(li.offene_stellen||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Expansion</div><p>'+esc(li.expansion_indikator||'–')+'</p></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Pressespiegel</div>'+presse+'</div>'
+
+    +'<div class="sc-section"><div class="sc-title">Budget & Empfehlung</div><div class="sc-grid">'
+    +'<div class="sc-card"><div class="sc-card-title">Umsatz (Schätzung)</div><p>'+esc(bg.umsatz_schaetzung||'–')+'</p></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Segment</div><p>'+esc(bg.cluster_begruendung||'–')+'</p><span class="sc-badge" style="color:'+clusterColor+'">'+esc(bg.cluster||'–')+'</span></div>'
+    +'<div class="sc-card"><div class="sc-card-title">Produktempfehlung</div><p>'+esc(bg.produktempfehlung||'–')+'</p></div>'
+    +'</div></div>'
+
+    +'<div class="sc-section"><div class="sc-highlight"><div class="sc-highlight-title">Empfehlung für den ersten Kontakt</div><p>'+esc(d.empfehlung||'–')+'</p></div></div>'
+
+    +'<div class="sc-section"><div class="sc-title">Quellen</div><div class="quellen-list">'+quellen+'</div></div>';
 }
-function closeModalDirect() {
-  document.getElementById('modalOverlay').classList.remove('active');
-}
-function printModal() {
-  var name = document.getElementById('modalTitle').textContent;
-  var content = document.getElementById('modalBody').innerHTML;
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+function printScreening() {
+  var title = document.getElementById('modalTitle').textContent;
+  var body = document.getElementById('modalBody').innerHTML;
   var w = window.open('', '_blank');
-  w.document.write('<html><head><title>'+name+'</title><style>body{font-family:Calibri,sans-serif;padding:32px;max-width:800px;margin:0 auto;font-size:13px;line-height:1.8}h1{font-size:20px;margin-bottom:24px}h2{font-size:15px;border-bottom:1px solid #ccc;padding-bottom:4px;margin:16px 0 6px}strong{font-weight:600}</style></head><body><h1>'+name+'</h1>'+content+'</body></html>');
+  w.document.write('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>'+title+'</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Calibri,sans-serif;font-size:11px;color:#111;padding:24px 32px;max-width:900px;margin:0 auto}.sc-section{margin-bottom:20px}.sc-title{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:5px;margin-bottom:10px}.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.sc-card{background:#f5f3ee;border-radius:4px;padding:10px 12px}.sc-card-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2d6a3e;margin-bottom:4px}.sc-card p{font-size:10px;color:#444;line-height:1.5}.sc-highlight{background:#fffef5;border:1px solid #e0d890;border-radius:6px;padding:12px 16px}.sc-highlight-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#b89a00;margin-bottom:5px}.sc-highlight p{font-size:11px;font-style:italic;color:#555;line-height:1.6}.sc-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;border:1px solid currentColor;margin-top:5px}.reife-dots{display:flex;gap:3px;margin-top:6px}.reife-dot{width:20px;height:4px;border-radius:2px;background:#ddd}.reife-dot.active{background:#111}.swatches{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.swatch{width:16px;height:16px;border-radius:2px;border:1px solid rgba(0,0,0,.1)}.presse-item{border-left:2px solid #ddd;padding:6px 10px;margin-bottom:6px}.quellen-list a{font-size:10px;color:#2d6a3e;display:block;margin-bottom:2px}h1{font-family:Georgia,serif;font-size:20px;font-weight:300;font-style:italic;margin-bottom:4px}.meta{font-size:9px;color:#888;margin-bottom:20px}@media print{body{padding:12mm 14mm}.sc-card{break-inside:avoid}}</style></head><body><h1>'+title+'</h1><div class="meta">MYWORKSPACE Firmenprofil &nbsp;&middot;&nbsp; '+new Date().toLocaleDateString('de-DE')+'</div>'+body+'</body></html>');
   w.document.close();
   w.print();
 }
-}
+
+// ── HELPERS ──
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function isNA(v) { if (!v) return true; var x = String(v).toLowerCase().trim(); return !x||x==='nicht oeffentlich'||x==='nicht öffentlich'||x==='unbekannt'||x==='n/a'||x==='-'||x==='keine angabe'; }
 </script>
 </body>
 </html>
