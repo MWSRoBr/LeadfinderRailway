@@ -147,16 +147,17 @@ function parsePlzInput(input) {
 
 function getDateRange() {
   const now = new Date();
-  const from = new Date(now);
-  from.setFullYear(from.getFullYear() - 1);
-  const future = new Date(now);
-  future.setFullYear(future.getFullYear() + 4);
+  const from12 = new Date(now); from12.setMonth(from12.getMonth() - 12);
+  const from10 = new Date(now); from10.setMonth(from10.getMonth() - 10);
+  const plus6 = new Date(now);  plus6.setMonth(plus6.getMonth() + 6);
   const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   return {
     today: `${months[now.getMonth()]} ${now.getFullYear()}`,
-    from: `${months[from.getMonth()]} ${from.getFullYear()}`,
-    until: `${months[future.getMonth()]} ${future.getFullYear()}`,
-    range: `${months[from.getMonth()]} ${from.getFullYear()} bis ${months[now.getMonth()]} ${now.getFullYear()}`
+    from12: `${months[from12.getMonth()]} ${from12.getFullYear()}`,
+    from10: `${months[from10.getMonth()]} ${from10.getFullYear()}`,
+    plus6:  `${months[plus6.getMonth()]} ${plus6.getFullYear()}`,
+    range12: `${months[from12.getMonth()]} ${from12.getFullYear()} bis ${months[now.getMonth()]} ${now.getFullYear()}`,
+    range10: `${months[from10.getMonth()]} ${from10.getFullYear()} bis ${months[now.getMonth()]} ${now.getFullYear()}`
   };
 }
 
@@ -288,7 +289,7 @@ Wenn keine echten offenen Projekte: "leads":[]`,
     if (formatData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
     if (formatData.error) return res.json({ error: formatData.error });
     const jsonText = (formatData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    return res.json({ _jsonText: jsonText, _dateRange: dates.range, _orte: orteListe });
+    return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: orteListe });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
@@ -361,6 +362,105 @@ app.post('/api/company', async (req, res) => {
     if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
 
     return res.json({ _data: parsed, _vorlagen: vorlagen });
+
+  } catch (err) {
+    return res.status(500).json({ error: { message: err.message } });
+  }
+});
+
+// ── API: PROJECT SEARCH ─────────────────────────────────────────
+app.post('/api/projects', async (req, res) => {
+  const { apiKey, orte, plzPrefixes } = req.body;
+  if (!apiKey || !orte || !orte.length) return res.status(400).json({ error: 'Missing params' });
+
+  const dates = getDateRange();
+  const orteListe = orte.slice(0, 8).join(', ');
+  const plzListe = plzPrefixes ? plzPrefixes.map(p => p + 'xxx').join(', ') : '';
+
+  try {
+    const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: `Du hast Live-Web-Suche. Nutze sie aktiv. Heute ist ${dates.today}.`,
+        messages: [{ role: 'user', content: `Suche nach konkreten Büro-Bauprojekten (Neubau oder Umbau) in dieser Region: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
+
+Zeitlogik:
+- Artikel/Meldungen erschienen: ${dates.from10} bis ${dates.today} (letzte 10 Monate)
+- Fertigstellung des Projekts: frühestens ${dates.plus6} (mind. 6 Monate in der Zukunft), nach oben offen
+- NUR Projekte die noch NICHT fertiggestellt sind
+
+Mindestgröße: ab 500 m² Bürofläche
+
+Suche auf folgenden Quellen:
+- blachreport.de
+- immobilienzeitung.de
+- Städtische Bauprojektlisten (z.B. stadtname.de/bauprojekte)
+- Pressemitteilungen von Projektentwicklern
+- vergabepilot.ai
+- Lokale Wirtschaftsmedien
+
+Für jedes Projekt sammle ALLE verfügbaren Infos:
+- Projektname und Beschreibung
+- Standort und PLZ
+- Bürofläche m² und Arbeitsplätze
+- Fertigstellungstermin
+- Projekttyp (Neubau / Umbau)
+- Möbelbedarf-Einschätzung
+- Ausschreibungsstatus
+- Auftraggeber: Firmenname, Adresse, Telefon, E-Mail, Ansprechpartner
+- Architekturbüro: Firmenname, Adresse, Telefon, E-Mail, Ansprechpartner
+- Interieur-Verantwortlicher: Firmenname, Adresse, Telefon, E-Mail, Ansprechpartner
+- Geplanter Mieter/Nutzer falls bekannt: Firmenname, Kontakt
+- URL der Quelle
+
+Ziel: 3-6 konkrete Projekte mit möglichst vollständigen Kontaktdaten.` }]
+      })
+    });
+
+    const searchData = await searchResp.json();
+    if (searchData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (searchData.error) return res.json({ error: searchData.error });
+
+    const rawText = (searchData.content || []).map(b => {
+      if (b.type === 'text') return b.text || '';
+      if (b.type === 'web_search_tool_result') return (b.content || []).map(c => c.text || (c.document && c.document.text) || '').join(' ');
+      return '';
+    }).filter(Boolean).join('\n').substring(0, 5000);
+
+    if (!rawText || rawText.length < 50) return res.json({ error: { message: 'no_results' } });
+
+    await new Promise(r => setTimeout(r, 8000));
+
+    // Format as JSON
+    const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        system: 'Gib NUR ein JSON-Array zurück. Beginne mit [ Kein Text. Kein Markdown. Alle Strings einzeilig.',
+        messages: [{ role: 'user', content: `Extrahiere Bauprojekte aus diesem Text als JSON-Array. Nur Projekte mit Fertigstellung nach ${dates.plus6}. Nur Büroprojekte ab 500m².
+
+${rawText.substring(0,3500)}
+
+[{"projektname":"...","beschreibung":"...","standort":"...","plz":"...","bueroflaeche":"z.B. 2.500 m²","arbeitsplaetze":"z.B. 100","fertigstellung":"z.B. Q2 2027","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"Geplant oder Offen oder Vergeben","auftraggeber":{"firma":"...","adresse":"...","telefon":"...","email":"...","ansprechpartner":"..."},"architekt":{"firma":"...","adresse":"...","telefon":"...","email":"...","ansprechpartner":"..."},"interieur":{"firma":"...","adresse":"...","telefon":"...","email":"...","ansprechpartner":"..."},"mieter":{"firma":"...","kontakt":"..."},"quelleUrl":"https://..."}]` }]
+      })
+    });
+
+    const formatData = await formatResp.json();
+    if (formatData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (formatData.error) return res.json({ error: formatData.error });
+
+    const jsonText = (formatData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = jsonText.match(/\[[\s\S]*\]/);
+    let projects = [];
+    if (match) { try { projects = JSON.parse(match[0]); } catch(e) {} }
+
+    return res.json({ projects, _range: dates.range10 });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
