@@ -159,6 +159,33 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px;
 .btn-copy { margin-top: 6px; padding: 4px 10px; background: var(--white); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; color: var(--text-mid); transition: all 0.15s; }
 .btn-copy:hover { background: var(--black); color: #fff; border-color: var(--black); }
 .quellen-list a { font-size: 12px; color: var(--green); display: block; margin-bottom: 3px; word-break: break-all; }
+
+/* Project cards */
+.proj-card { background: var(--white); border: 1.5px solid var(--border); border-radius: 10px; padding: 22px; margin-bottom: 14px; border-left: 4px solid var(--green); }
+.proj-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.proj-name { font-family: 'EB Garamond', serif; font-size: 22px; font-weight: 500; line-height: 1.2; }
+.proj-type { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }
+.proj-right { text-align: right; flex-shrink: 0; margin-left: 16px; }
+.proj-ort { font-size: 12px; color: var(--text-muted); }
+.proj-badge { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; margin-top: 5px; }
+.proj-badge.hoch { background: var(--green); color: #fff; }
+.proj-badge.mittel { background: var(--green-light); color: #3a5a1a; }
+.proj-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.proj-fact { background: var(--bg); border-radius: 5px; padding: 8px 12px; }
+.proj-fact-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+.proj-fact-val { font-size: 13px; font-weight: 600; color: var(--text); }
+.proj-contacts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 5px; }
+.proj-contact { background: var(--bg); border-radius: 6px; padding: 12px 14px; }
+.proj-contact-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+.proj-contact p { font-size: 11px; color: var(--text-mid); line-height: 1.6; }
+.proj-contact a { color: var(--text); text-decoration: none; }
+.proj-contact a:hover { text-decoration: underline; }
+.proj-quelle { font-size: 11px; margin-top: 10px; }
+.proj-quelle a { color: var(--green); text-decoration: underline; word-break: break-all; }
+.block-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1.5px solid var(--border); }
+.block-hdr-title { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); }
+.block-hdr-count { font-size: 10px; color: var(--text-muted); }
+.block-section { margin-bottom: 40px; }
 </style>
 </head>
 <body>
@@ -334,26 +361,32 @@ async function startSearch() {
   startProg();
 
   try {
-    var resp = await fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte,plzPrefixes,strictness})});
-    var data = await resp.json();
-    if (!resp.ok||data.error) {
-      stopProg(false);
-      var msg=(data.error&&(data.error.message||data.error))||resp.status;
-      if(msg==='overloaded') msg='Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
-      if(msg==='no_results') msg='Keine Ergebnisse gefunden. Bitte PLZ-Bereich erweitern oder Slider nach rechts stellen.';
-      st.className='status-msg err'; st.textContent=msg; btn.disabled=false; return;
-    }
-    var parsed = extractData(data._jsonText);
+    // Run both searches in parallel
+    var [projResp, searchResp] = await Promise.all([
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte,plzPrefixes})}),
+      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte,plzPrefixes,strictness})})
+    ]);
+
+    var [projData, searchData] = await Promise.all([projResp.json(), searchResp.json()]);
+
     stopProg(true);
-    if (!parsed) { st.className='status-msg err'; st.textContent='Keine Ergebnisse. Bitte erneut versuchen.'; btn.disabled=false; return; }
-    var branchen=parsed.branchen||[], leads=parsed.leads||[];
-    renderResults(branchen, leads, data._dateRange, data._orte);
+
+    var projects = projData.projects || [];
+    var parsed = extractData(searchData._jsonText);
+    var branchen = parsed ? (parsed.branchen||[]) : [];
+    var leads = parsed ? (parsed.leads||[]) : [];
+
+    renderResults(branchen, projects, leads, searchData._dateRange, searchData._orte, projData._range);
+
+    var msgs = [];
+    if (projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
     if (leads.length) {
       var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length;
-      st.className='status-msg ok'; st.textContent=leads.length+' Ergebnis'+(leads.length===1?'':'se')+' – '+h+' mit hoher Priorität.';
-    } else {
-      st.className='status-msg err'; st.textContent='Keine passenden Firmen gefunden. PLZ-Bereich erweitern oder Slider nach rechts stellen.';
+      msgs.push(leads.length+' Firma'+(leads.length===1?'':'en')+' ('+h+' Hoch)');
     }
+    if (msgs.length) { st.className='status-msg ok'; st.textContent=msgs.join(' · '); }
+    else { st.className='status-msg err'; st.textContent='Keine Ergebnisse. PLZ-Bereich erweitern oder Slider nach rechts stellen.'; }
+
   } catch(e) { stopProg(false); st.className='status-msg err'; st.textContent='Verbindungsfehler: '+e.message; }
   btn.disabled=false;
 }
@@ -366,7 +399,7 @@ function extractData(raw) {
   return null;
 }
 
-function renderResults(branchen, leads, dateRange, orteStr) {
+function renderResults(branchen, projects, leads, dateRange, orteStr, projRange) {
   var el=document.getElementById('results'), html='';
   html+='<div class="disclaimer">&#9888;&nbsp;<strong>KI-generierte Ergebnisse – zur eigenen Einschätzung.</strong> Diese Liste kann Fehler oder veraltete Angaben enthalten. Bitte alle Quellen selbst prüfen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.</div>';
 
@@ -379,10 +412,51 @@ function renderResults(branchen, leads, dateRange, orteStr) {
     html+='</div>';
   }
 
+  // PROJECT BLOCK
+  if (projects && projects.length) {
+    html+='<div class="block-section"><div class="block-hdr"><div class="block-title" style="font-family:EB Garamond,serif;font-size:22px;font-weight:500">Geplante Bauprojekte</div><div class="block-hdr-count">'+projects.length+' Projekt'+(projects.length===1?'':'e')+(projRange?' &nbsp;&middot;&nbsp; '+esc(projRange):'')+'</div></div>';
+    projects.forEach(function(p,idx){
+      var mbColor={hoch:'var(--green)',mittel:'var(--text-muted)'}[(p.moebelbedarfEinschaetzung||'').toLowerCase()]||'var(--text-muted)';
+      var ausst=p.ausschreibungsstatus||'–';
+      function contactBlock(ct, label) {
+        if(!ct||!ct.firma||ct.firma==='...'||ct.firma==='-') return '';
+        return '<div class="proj-contact"><div class="proj-contact-lbl">'+label+'</div><p><strong>'+esc(ct.firma||'–')+'</strong>'
+          +(ct.ansprechpartner&&ct.ansprechpartner!=='...'?'<br>'+esc(ct.ansprechpartner):'')
+          +(ct.adresse&&ct.adresse!=='...'?'<br>'+esc(ct.adresse):'')
+          +(ct.telefon&&ct.telefon!=='...'&&ct.telefon!=='-'?'<br><a href="tel:'+esc(ct.telefon)+'">'+esc(ct.telefon)+'</a>':'')
+          +(ct.email&&ct.email!=='...'&&ct.email!=='-'?'<br><a href="mailto:'+esc(ct.email)+'">'+esc(ct.email)+'</a>':'')
+          +'</p></div>';
+      }
+      var contacts = contactBlock(p.auftraggeber,'Auftraggeber')+contactBlock(p.architekt,'Architekturbüro')+contactBlock(p.interieur,'Interieur-Design');
+      if (!contacts) contacts = '<div class="proj-contact"><div class="proj-contact-lbl">Hinweis</div><p>Kontaktrecherche über Quellenlink empfohlen</p></div>';
+      html+='<div class="proj-card">'
+        +'<div class="proj-head"><div><div class="proj-name">'+esc(p.projektname||'–')+'</div><div class="proj-type">'+esc(p.projekttyp||'')+'</div></div>'
+        +'<div class="proj-right"><div class="proj-ort">'+esc(p.standort||'')+(p.plz?' &nbsp;'+esc(p.plz):'')+'</div>'
+        +'<span class="proj-badge '+(p.moebelbedarfEinschaetzung||'').toLowerCase()+'">Möbelbedarf: '+esc(p.moebelbedarfEinschaetzung||'–')+'</span></div></div>'
+        +(p.beschreibung?'<p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:14px">'+esc(p.beschreibung)+'</p>':'')
+        +'<div class="proj-facts">'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">Bürofläche</div><div class="proj-fact-val">'+esc(p.bueroflaeche||'–')+'</div></div>'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">Arbeitsplätze</div><div class="proj-fact-val">'+esc(p.arbeitsplaetze||'–')+'</div></div>'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">Fertigstellung</div><div class="proj-fact-val">'+esc(p.fertigstellung||'–')+'</div></div>'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">Ausschreibung</div><div class="proj-fact-val">'+esc(ausst)+'</div></div>'
+        +'</div>'
+        +'<div class="slbl">Ansprechpartner</div><div class="proj-contacts">'+contacts+'</div>'
+        +(p.mieter&&p.mieter.firma&&p.mieter.firma!=='...'?'<div class="slbl">Geplanter Mieter/Nutzer</div><div class="proj-contact" style="display:inline-block;min-width:200px"><p><strong>'+esc(p.mieter.firma)+'</strong>'+(p.mieter.kontakt&&p.mieter.kontakt!=='...'?'<br>'+esc(p.mieter.kontakt):'')+'</p></div>':'')
+        +(p.quelleUrl&&p.quelleUrl.indexOf('http')===0?'<div class="proj-quelle">Quelle: <a href="'+esc(p.quelleUrl)+'" target="_blank" rel="noopener">'+esc(p.quelleUrl.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>':'')
+        +'</div>';
+    });
+    html+='</div>';
+  }
+
+  // COMPANY BLOCK
+  if (leads && leads.length) {
+    html+='<div class="block-section"><div class="block-hdr"><div class="block-title" style="font-family:EB Garamond,serif;font-size:22px;font-weight:500">Wachsende Unternehmen</div></div>';
+  }
+
   if (leads.length) {
     var hoch=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';});
     var sorted=hoch.concat(leads.filter(function(l){return(l.prioritaet||'').toLowerCase()!=='hoch';}));
-    window._leads=sorted;
+    window._leads=sorted; window._projects=projects||[];
     html+='<div class="leads-bar"><div class="leads-count">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch &nbsp;&middot;&nbsp; '+(sorted.length-hoch.length)+' Mittel</div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
@@ -402,6 +476,7 @@ function renderResults(branchen, leads, dateRange, orteStr) {
         +'</div>';
     });
   }
+  if (leads && leads.length) html+='</div>';
   el.innerHTML=html;
 }
 
