@@ -161,7 +161,7 @@ Filter (${strict.label}):
   }
 });
 
-// Company profile endpoint (Client Screening)
+// Company profile endpoint (Client Screening) - two-step
 app.post('/api/company', async (req, res) => {
   const { apiKey, name, ort, branche, modus } = req.body;
   if (!apiKey || !name) return res.status(400).json({ error: 'Missing params' });
@@ -171,41 +171,50 @@ app.post('/api/company', async (req, res) => {
     : 'Geschaeftsfuehrer und Inhaber';
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    // STEP 1: Recherche mit Web-Suche (Freitext)
+    const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
+        max_tokens: 2500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: 'Recherchiere Firmendaten gruendlich. Antworte NUR mit JSON. Beginne mit {',
-        messages: [{ role: 'user', content: `Recherchiere alle verfuegbaren Infos ueber "${name}" in ${ort} (${branche}). Suche Impressum, Website, LinkedIn, Pressemitteilungen.
-
-Antworte NUR mit diesem JSON:
-{
-  "basis": {"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},
-  "selbstbild": {"farben":{"beschreibung":"...","hex_codes":[]},"typografie":"...","bildwelt":"...","tonalitaet":"...","keywords":[]},
-  "fremdbild": {"bewertungen":"...","medien":"...","recruiting":"..."},
-  "wettbewerb": {"positionierung":"...","differenzierung":"...","segment":"Premium oder Mitte oder Budget","awards":"..."},
-  "design_reife": {"stufe":1,"stufe_label":"...","begruendung":"..."},
-  "bueroplanung": {"arbeitskultur":"...","raumbedarf":"...","aesthetik_praeferenz":"...","new_work_affinitaet":"hoch oder mittel oder gering","new_work_begruendung":"..."},
-  "linkedin": {"groesse":"...","wachstumstrend":"...","wachstum_begruendung":"...","offene_stellen":"...","expansion_indikator":"..."},
-  "pressespiegel": [{"datum":"...","titel":"...","zusammenfassung":"...","relevanz_vertrieb":"..."}],
-  "budget": {"umsatz_schaetzung":"...","mitarbeiterzahl":"...","cluster":"Einstieg oder Mid oder Premium","cluster_begruendung":"...","produktempfehlung":"..."},
-  "ansprechpartner": [{"name":"...","funktion":"${contactFocus}","telefon":"...","email":"..."}],
-  "empfehlung": "Konkreter Einstiegssatz fuer MYWORKSPACE Kaltanruf",
-  "quellen": [{"label":"...","url":"..."}]
-}` }]
+        messages: [{ role: 'user', content: `Recherchiere alle verfuegbaren Informationen ueber die Firma "${name}" in ${ort} (Branche: ${branche}). Suche: Impressum (Adresse, Telefon, Email, GF-Name), Unternehmenswebsite, LinkedIn-Profil, aktuelle Pressemitteilungen. Beschreibe Unternehmenskultur, Design-Erscheinung, Wachstum und aktuelle News.` }]
       })
     });
-    const data = await resp.json();
-    if (data.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
-    if (data.error) return res.json({ error: data.error });
+    const searchData = await searchResp.json();
+    if (searchData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (searchData.error) return res.json({ error: searchData.error });
 
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    const match = text.match(/\{[\s\S]*\}/);
-    const parsed = match ? JSON.parse(match[0]) : null;
-    return res.json({ _data: parsed, _raw: text });
+    const rawText = (searchData.content || []).map(b => {
+      if (b.type === 'text') return b.text || '';
+      if (b.type === 'web_search_tool_result') return (b.content || []).map(c => c.text || c.document?.text || '').join(' ');
+      return '';
+    }).filter(Boolean).join('\n').substring(0, 4000);
+
+    await new Promise(r => setTimeout(r, 8000));
+
+    // STEP 2: JSON-Formatierung ohne Web-Suche
+    const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 3000,
+        system: 'Gib NUR ein JSON-Objekt zurueck. Beginne mit { Kein Text. Kein Markdown. Alle Strings muessen valides JSON sein (keine Zeilenumbrueche in Strings).',
+        messages: [{ role: 'user', content: `Erstelle ein JSON-Objekt aus diesen Firmendaten. Alle Texte in einer Zeile (keine \n in Strings):\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"selbstbild":{"farben":{"beschreibung":"...","hex_codes":[]},"typografie":"...","bildwelt":"...","tonalitaet":"...","keywords":[]},"fremdbild":{"bewertungen":"...","medien":"...","recruiting":"..."},"wettbewerb":{"positionierung":"...","differenzierung":"...","segment":"Premium oder Mitte oder Budget","awards":"..."},"design_reife":{"stufe":2,"stufe_label":"...","begruendung":"..."},"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","aesthetik_praeferenz":"...","new_work_affinitaet":"mittel","new_work_begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend","wachstum_begruendung":"...","offene_stellen":"...","expansion_indikator":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","relevanz_vertrieb":"..."}],"budget":{"umsatz_schaetzung":"...","mitarbeiterzahl":"...","cluster":"Mid","cluster_begruendung":"...","produktempfehlung":"..."},"ansprechpartner":[{"name":"...","funktion":"${contactFocus}","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}],"empfehlung":"Konkreter Einstiegssatz fuer MYWORKSPACE","quellen":[{"label":"...","url":"..."}]}` }]
+      })
+    });
+    const formatData = await formatResp.json();
+    if (formatData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
+    if (formatData.error) return res.json({ error: formatData.error });
+
+    const jsonText = (formatData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = jsonText.match(/\{[\s\S]*\}/);
+    let parsed = null;
+    if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
+
+    return res.json({ _data: parsed, _raw: jsonText });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
