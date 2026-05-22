@@ -3,90 +3,202 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── PLZ DATENBANK ──────────────────────────────────────────────
+// Kompakte PLZ-Prefix zu Orte Zuordnung (2-3 stellig → Ortsnamen)
+const PLZ_MAP = {
+  '01': ['Dresden','Meißen','Radebeul','Coswig','Freital'],
+  '02': ['Görlitz','Bautzen','Zittau','Hoyerswerda','Löbau'],
+  '03': ['Cottbus','Spremberg','Forst','Guben'],
+  '04': ['Leipzig','Borna','Grimma','Markkleeberg','Torgau'],
+  '06': ['Halle','Merseburg','Dessau','Köthen','Weißenfels'],
+  '07': ['Erfurt','Jena','Weimar','Gera','Altenburg'],
+  '08': ['Chemnitz','Zwickau','Plauen','Aue','Stollberg'],
+  '09': ['Chemnitz','Freiberg','Mittweida','Annaberg'],
+  '10': ['Berlin-Mitte','Berlin-Tiergarten','Berlin-Wedding'],
+  '11': ['Berlin'],
+  '12': ['Berlin-Tempelhof','Berlin-Neukölln','Berlin-Treptow'],
+  '13': ['Berlin-Wedding','Berlin-Reinickendorf','Berlin-Pankow'],
+  '14': ['Berlin-Spandau','Berlin-Charlottenburg','Potsdam','Brandenburg'],
+  '15': ['Potsdam','Königs Wusterhausen','Luckenwalde','Zossen'],
+  '16': ['Oranienburg','Neuruppin','Bernau','Eberswalde'],
+  '17': ['Neubrandenburg','Waren','Neustrelitz','Greifswald'],
+  '18': ['Rostock','Wismar','Güstrow','Stralsund'],
+  '19': ['Schwerin','Ludwigslust','Parchim','Hagenow'],
+  '20': ['Hamburg-Mitte','Hamburg-Altstadt','Hamburg-Neustadt'],
+  '21': ['Hamburg-Harburg','Lüneburg','Stade','Winsen','Buchholz'],
+  '22': ['Hamburg-Eimsbüttel','Hamburg-Altona','Hamburg-Nord'],
+  '23': ['Lübeck','Travemünde','Bad Schwartau','Ratzeburg'],
+  '24': ['Kiel','Neumünster','Rendsburg','Eckernförde'],
+  '25': ['Heide','Itzehoe','Brunsbüttel','Husum'],
+  '26': ['Oldenburg','Wilhelmshaven','Delmenhorst','Emden'],
+  '27': ['Bremen-Nord','Bremerhaven','Cuxhaven','Verden'],
+  '28': ['Bremen','Delmenhorst'],
+  '29': ['Celle','Uelzen','Lüneburg','Soltau','Walsrode'],
+  '30': ['Hannover','Langenhagen','Garbsen'],
+  '31': ['Hildesheim','Hameln','Peine','Springe'],
+  '32': ['Herford','Minden','Bad Oeynhausen','Löhne'],
+  '33': ['Bielefeld','Paderborn','Gütersloh','Detmold'],
+  '34': ['Kassel','Hofgeismar','Bad Hersfeld','Fulda'],
+  '35': ['Marburg','Gießen','Wetzlar','Limburg'],
+  '36': ['Fulda','Bad Hersfeld','Hünfeld','Lauterbach'],
+  '37': ['Göttingen','Northeim','Duderstadt','Herzberg'],
+  '38': ['Braunschweig','Wolfsburg','Salzgitter','Wolfenbüttel'],
+  '39': ['Magdeburg','Halberstadt','Stendal','Schönebeck'],
+  '40': ['Düsseldorf','Ratingen','Erkrath'],
+  '41': ['Mönchengladbach','Krefeld','Neuss','Grevenbroich'],
+  '42': ['Wuppertal','Remscheid','Solingen','Velbert'],
+  '44': ['Dortmund','Castrop-Rauxel','Lünen'],
+  '45': ['Essen','Gelsenkirchen','Bottrop','Mülheim'],
+  '46': ['Oberhausen','Dinslaken','Wesel','Moers'],
+  '47': ['Duisburg','Krefeld','Kleve','Moers'],
+  '48': ['Münster','Osnabrück','Rheine','Ibbenbüren'],
+  '49': ['Osnabrück','Lingen','Nordhorn','Meppen'],
+  '50': ['Köln','Brühl','Pulheim','Frechen','Hürth'],
+  '51': ['Köln-Porz','Bergisch Gladbach','Leverkusen','Overath'],
+  '52': ['Aachen','Eschweiler','Stolberg','Herzogenrath','Würselen'],
+  '53': ['Bonn','Siegburg','Sankt Augustin','Troisdorf','Hennef'],
+  '54': ['Trier','Bitburg','Wittlich','Bernkastel-Kues'],
+  '55': ['Mainz','Worms','Bad Kreuznach','Ingelheim'],
+  '56': ['Koblenz','Neuwied','Andernach','Mayen','Bad Neuenahr'],
+  '57': ['Siegen','Olpe','Attendorn','Betzdorf'],
+  '58': ['Hagen','Iserlohn','Lüdenscheid','Menden'],
+  '59': ['Hamm','Soest','Arnsberg','Unna','Lippstadt'],
+  '60': ['Frankfurt-Innenstadt','Frankfurt-Nordend','Frankfurt-Bornheim'],
+  '61': ['Frankfurt-Nord','Bad Homburg','Friedberg','Oberursel','Bad Vilbel'],
+  '63': ['Offenbach','Aschaffenburg','Hanau','Seligenstadt'],
+  '64': ['Darmstadt','Rüsselsheim','Groß-Gerau','Bensheim'],
+  '65': ['Wiesbaden','Mainz-Kostheim','Rüdesheim','Bad Schwalbach'],
+  '66': ['Saarbrücken','Saarlouis','Neunkirchen','Homburg'],
+  '67': ['Ludwigshafen','Mannheim','Frankenthal','Speyer'],
+  '68': ['Mannheim','Heidelberg','Ladenburg'],
+  '69': ['Heidelberg','Weinheim','Sinsheim','Eberbach'],
+  '70': ['Stuttgart','Fellbach','Kernen','Remseck'],
+  '71': ['Ludwigsburg','Waiblingen','Backnang','Bietigheim'],
+  '72': ['Tübingen','Reutlingen','Mössingen','Hechingen'],
+  '73': ['Esslingen','Göppingen','Kirchheim','Nürtingen'],
+  '74': ['Heilbronn','Öhringen','Neckarsulm','Mosbach'],
+  '75': ['Pforzheim','Mühlacker','Bretten','Ettlingen'],
+  '76': ['Karlsruhe','Baden-Baden','Rastatt','Bruchsal'],
+  '77': ['Offenburg','Lahr','Kehl','Achern'],
+  '78': ['Konstanz','Villingen-Schwenningen','Singen','Rottweil'],
+  '79': ['Freiburg','Breisach','Müllheim','Bad Krozingen'],
+  '80': ['München-Schwabing','München-Maxvorstadt','München-Innenstadt'],
+  '81': ['München-Bogenhausen','München-Berg am Laim','München-Ramersdorf'],
+  '82': ['München-Süd','Gauting','Starnberg','Weilheim','Germering'],
+  '83': ['Rosenheim','Wasserburg','Traunstein','Bad Aibling'],
+  '84': ['Landshut','Dingolfing','Straubing','Vilsbiburg'],
+  '85': ['Ingolstadt','Erding','Freising','Moosburg','Eichstätt'],
+  '86': ['Augsburg','Kaufbeuren','Memmingen','Dillingen','Donauwörth'],
+  '87': ['Kempten','Kaufbeuren','Immenstadt','Sonthofen','Füssen'],
+  '88': ['Ravensburg','Ulm-Süd','Friedrichshafen','Biberach','Leutkirch'],
+  '89': ['Ulm','Neu-Ulm','Günzburg','Heidenheim','Blaubeuren'],
+  '90': ['Nürnberg','Fürth','Erlangen'],
+  '91': ['Nürnberg-Süd','Schwabach','Ansbach','Roth','Neumarkt'],
+  '92': ['Amberg','Weiden','Cham','Schwandorf'],
+  '93': ['Regensburg','Kelheim','Neustadt/Donau','Straubing'],
+  '94': ['Passau','Deggendorf','Freyung','Zwiesel'],
+  '95': ['Bayreuth','Hof','Kulmbach','Münchberg'],
+  '96': ['Bamberg','Coburg','Lichtenfels','Kronach'],
+  '97': ['Würzburg','Schweinfurt','Bad Kissingen','Aschaffenburg'],
+  '98': ['Erfurt-Süd','Suhl','Meiningen','Hildburghausen'],
+  '99': ['Erfurt','Gotha','Eisenach','Mühlhausen','Sondershausen']
+};
+
+function getOrteFromPlzPrefix(prefix) {
+  prefix = prefix.trim();
+  const orte = new Set();
+  // Try 2-digit prefix
+  const key2 = prefix.substring(0, 2);
+  if (PLZ_MAP[key2]) PLZ_MAP[key2].forEach(o => orte.add(o));
+  // Also check adjacent prefixes if 3 digits given
+  if (prefix.length >= 3) {
+    const key3base = prefix.substring(0, 2);
+    if (PLZ_MAP[key3base]) PLZ_MAP[key3base].forEach(o => orte.add(o));
+  }
+  return [...orte];
+}
+
+function parsePlzInput(input) {
+  // Parse input like "50", "50-53", "504", "50,51,52", "50-52 56"
+  input = input.trim();
+  const prefixes = new Set();
+  // Split by comma, space
+  const parts = input.split(/[,\s]+/);
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-');
+      const s = parseInt(start.substring(0, 2));
+      const e = parseInt(end.substring(0, 2));
+      if (!isNaN(s) && !isNaN(e)) {
+        for (let i = s; i <= e; i++) prefixes.add(String(i).padStart(2, '0'));
+      }
+    } else if (part.match(/^\d+$/)) {
+      prefixes.add(part.substring(0, 2).padStart(2, '0'));
+    }
+  }
+  // Get all orte
+  const orte = new Set();
+  prefixes.forEach(p => getOrteFromPlzPrefix(p).forEach(o => orte.add(o)));
+  return { prefixes: [...prefixes], orte: [...orte] };
+}
 
 function getDateRange() {
   const now = new Date();
   const from = new Date(now);
   from.setFullYear(from.getFullYear() - 1);
+  const future = new Date(now);
+  future.setFullYear(future.getFullYear() + 4);
   const months = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   return {
     today: `${months[now.getMonth()]} ${now.getFullYear()}`,
     from: `${months[from.getMonth()]} ${from.getFullYear()}`,
+    until: `${months[future.getMonth()]} ${future.getFullYear()}`,
     range: `${months[from.getMonth()]} ${from.getFullYear()} bis ${months[now.getMonth()]} ${now.getFullYear()}`
   };
 }
 
-// Region suggestion endpoint
-app.post('/api/region', async (req, res) => {
-  const { apiKey, city } = req.body;
-  if (!apiKey || !city) return res.status(400).json({ error: 'Missing params' });
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        system: 'Antworte NUR mit einem JSON-Array aus 4-6 Städtenamen. Kein Text.',
-        messages: [{ role: 'user', content: `Welche 4-6 Städte gehören zur Wirtschaftsregion von ${city} in Deutschland? Nur die wichtigsten, wirtschaftlich relevanten Städte im unmittelbaren Umkreis. JSON-Array: ["Stadt1","Stadt2",...]` }]
-      })
-    });
-    const data = await resp.json();
-    if (data.error) return res.json({ error: data.error });
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    const match = text.match(/\[[\s\S]*\]/);
-    const cities = match ? JSON.parse(match[0]) : [city];
-    return res.json({ cities });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+// ── API: PLZ RESOLVE ────────────────────────────────────────────
+app.post('/api/plz', (req, res) => {
+  const { plz } = req.body;
+  if (!plz) return res.status(400).json({ error: 'Missing plz' });
+  const result = parsePlzInput(plz);
+  if (!result.orte.length) return res.json({ error: 'PLZ-Bereich nicht erkannt. Bitte 2-3 stellige PLZ eingeben (z.B. 50 oder 50-53).' });
+  return res.json({ orte: result.orte, prefixes: result.prefixes });
 });
 
-// Main search endpoint
+// ── API: SEARCH ─────────────────────────────────────────────────
 app.post('/api/search', async (req, res) => {
-  const { apiKey, cities, modus, strictness } = req.body;
-  if (!apiKey || !cities || !cities.length) return res.status(400).json({ error: 'Missing params' });
+  const { apiKey, orte, plzPrefixes, strictness } = req.body;
+  if (!apiKey || !orte || !orte.length) return res.status(400).json({ error: 'Missing params' });
 
   const dates = getDateRange();
-  const stadteListe = cities.join(', ');
+  const orteListe = orte.slice(0, 8).join(', ');
+  const plzListe = plzPrefixes ? plzPrefixes.map(p => p + 'xxx').join(', ') : '';
 
-  // Strictness settings
   const strictMap = {
-    streng:      { label: 'nur klare GmbH, starke Signale, inhabergeführt', minSignals: 'starke' },
-    ausgewogen:  { label: 'GmbH bevorzugt, mittlere Signale reichen, überwiegend inhabergeführt', minSignals: 'mittlere' },
-    breit:       { label: 'auch kleine AGs, schwächere Signale werden aufgenommen, mehr Treffer aber auch vagere', minSignals: 'auch schwächere' }
+    streng:     'Nur starke Signale: direkte Raum- und Investitionssignale (Neubau, Baugenehmigung, Finanzierungsrunde). Nur klare GmbH, inhabergeführt.',
+    ausgewogen: 'Mittlere Signale reichen: Expansion, neuer Standort, Führungswechsel, Fördergelder. GmbH bevorzugt.',
+    breit:      'Auch schwächere Signale aufnehmen: Wachstum, Zertifizierung, neue Stellen. Mehr Treffer, auch vagere.'
   };
-  const strict = strictMap[strictness] || strictMap.ausgewogen;
+  const strictRule = strictMap[strictness] || strictMap.ausgewogen;
 
-  // Modus settings
-  const modusMap = {
-    mittelstand: {
-      size: '100–500 Mitarbeiter, inhabergeführt',
-      signals: 'Stellenanzeigen für Bürojobs/Office Manager, Pressemeldungen neuer Standort, Handelsregistereintrag, Finanzierungsrunde, Umzugsmeldung',
-      contact: 'Inhaber oder Geschäftsführer',
-      goal: 'direkter Auftrag beim Entscheider'
-    },
-    grosskunde: {
-      size: 'ab 500 Mitarbeiter, auch nicht inhabergeführt',
-      signals: 'Reorganisation, neue Niederlassung, Pilotprojekt New Work, Wechsel im Facility Management, Abteilungsumzug, Digitalisierungsoffensive',
-      contact: 'Facility Manager, Office Manager, Abteilungsleiter – jemand mit lokaler Entscheidungskompetenz',
-      goal: 'Einstieg über Teilprojekt als Türöffner für Rahmenvertrag'
-    }
-  };
-  const mod = modusMap[modus] || modusMap.mittelstand;
+  // Prioritätsgruppen für Signale
+  const signaleHoch = 'Neubau, Umbau, Erweiterungsbau, Baugenehmigung, neue Gewerbefläche, Bürogebäude geplant, Firmensitz verlegt, Einzug geplant, Finanzierungsrunde, Kapitalerhöhung, KfW-Förderung, BAFA-Förderung';
+  const signaleMittel = 'Expansion, neuer Standort, Niederlassung, Tochtergesellschaft, Mitarbeiterwachstum, Rekordumsatz, Fusion, Übernahme, Ausgründung, New Work Einführung, neuer Geschäftsführer, Inhaberwechsel, Generationswechsel, Nachfolge, Restrukturierung, Spin-off';
+  const signaleHiddenGem = 'Zertifizierung erhalten, Akkreditierung, Neuzulassung, Pflegefachschule eröffnet, Bildungsträger zugelassen, Vergabeausschreibung Büromöbel';
 
   try {
-    // STEP 1: Branchenanalyse (Sonnet, kein Web-Search)
+    // SCHRITT 1: Branchenanalyse (Sonnet, kein Web-Search)
     const branchenResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        messages: [{ role: 'user', content: `Nenne 5 wirtschaftlich starke Branchen in der Region ${stadteListe}. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze mit regionalem Bezug] ---` }]
+        messages: [{ role: 'user', content: `Welche 5 Branchen sind wirtschaftlich stark in der Region ${orteListe}? Nutze dein Wissen über DAX/MDAX/TecDAX, ifo-Index, KfW-Förderungen, regionale Cluster. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze] ---` }]
       })
     });
     const branchenData = await branchenResp.json();
@@ -96,7 +208,7 @@ app.post('/api/search', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // STEP 2: Lead-Suche (Sonnet + Web-Search, breitere Signale)
+    // SCHRITT 2: Lead-Suche (Sonnet + Web-Search)
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
@@ -104,17 +216,29 @@ app.post('/api/search', async (req, res) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 4000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast Live-Web-Suche. Nutze sie aktiv. Dein Trainingsstichtag ist irrelevant – du kannst JETZT suchen.`,
-        messages: [{ role: 'user', content: `Suche nach Unternehmen (${mod.size}) in ${stadteListe} die sich verändern. Signale: ${mod.signals}. Zeitraum: ${dates.range}. Ziel: 8-10 Firmennamen.
+        system: `Du hast Live-Web-Suche. Dein Trainingsstichtag ist irrelevant. Suche jetzt aktiv im Web nach echten Firmennamen. Heute ist ${dates.today}.`,
+        messages: [{ role: 'user', content: `Suche nach inhabergeführten Mittelständlern (100-500 MA, mind. 30-40% Büroanteil) in diesen Orten: ${orteListe}${plzListe ? ` (PLZ-Bereiche: ${plzListe})` : ''}.
 
-Fuehre mehrere Suchen durch:
-- "${stadteListe.split(',')[0]} GmbH expandiert Büro 2025 2026"
-- "${stadteListe.split(',')[0]} Unternehmen neuer Standort Mitarbeiter 2025"
-- "${stadteListe.split(',')[0]} GmbH Finanzierung Wachstum 2025"
-- "${stadteListe.split(',')[0]} Firma Umzug Büro 2025 2026"
-- "${stadteListe.split(',')[0]} Office Manager Stellenanzeige 2025"
+Suche PARALLEL nach Ortsnamen UND PLZ-Bereichen.
 
-Für jede Firma: Name, Ort, was gefunden, URL, Ansprechpartner (${mod.contact}) falls im Impressum auffindbar. Keine Konzerne, keine DAX-Unternehmen.` }]
+Wichtig zur Zeitlogik:
+- Artikel/Meldungen erschienen: ${dates.from} bis ${dates.today} (letzte 12 Monate)  
+- Projektinhalt darf bis ${dates.until} in der Zukunft liegen (z.B. Neubau geplant 2027 = gültiger Lead!)
+
+Signale mit HOHER Priorität: ${signaleHoch}
+Signale mit MITTLERER Priorität: ${signaleMittel}  
+Hidden Gems: ${signaleHiddenGem}
+
+Suche auch auf:
+- Städtischen Bauprojektlisten (stadtname.de/bauprojekte oder ähnlich)
+- vergabepilot.ai (Ausschreibungen Büromöbel)
+- Lokalen Wirtschaftszeitungen und Handelsregister-Bekanntmachungen
+
+${strictRule}
+Keine Konzerne, keine DAX-Unternehmen. Nur GmbH oder kleine inhabergeführte AGs.
+
+Für jede Firma: Name, Ort, PLZ falls bekannt, Branche, konkretes Signal mit Datum, URL, GF/Inhaber-Name falls im Impressum auffindbar.
+Ziel: 8-10 konkrete Firmennamen.` }]
       })
     });
     const searchData = await searchResp.json();
@@ -127,51 +251,60 @@ Für jede Firma: Name, Ort, was gefunden, URL, Ansprechpartner (${mod.contact}) 
       return '';
     }).filter(Boolean).join('\n').substring(0, 5000);
 
-    if (!rawText || rawText.length < 50) return res.json({ error: { message: 'no_results' } });
+    if (!rawText || rawText.length < 80) return res.json({ error: { message: 'no_results' } });
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // STEP 3: JSON-Formatierung (Haiku, kein Web-Search)
+    // SCHRITT 3: JSON-Formatierung (Haiku)
     const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
-        system: `Gib NUR ein JSON-Objekt zurueck. Beginne mit {
-Filter (${strict.label}):
-- NICHT: DAX/MDAX-Konzerne, boersennotierte Unternehmen, Siemens, VW, Continental, TUI, Deutsche Messe, Hannover Rueck, Talanx, Allianz, BMW, BASF, Bayer und aehnliche Grosskonzerne
-- NICHT: Burovermietungen, Coworking, Kammern, Jobportale
-- NICHT: Phantomeintraege wie "Keine Daten"
-- Prioritaet HOCH: ${strict.minSignals} Signale + klar zur Zielgruppe passend
-- Prioritaet MITTEL: schwaecher oder nur vage passend
-- Wenn keine Firmen: "leads":[]`,
-        messages: [{ role: 'user', content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0, 3500)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum jetzt relevant? 2-3 Saetze ohne Fachbegriffe.","ansprechpartner":{"name":"nicht oeffentlich","funktion":"${mod.contact.split(',')[0]}"}}]}` }]
+        system: `Gib NUR ein JSON-Objekt zurück. Beginne mit {
+FILTER: ${strictRule}
+NIEMALS aufnehmen: DAX/MDAX-Konzerne, VW, Continental, TUI, Siemens, Deutsche Messe, Hannover Rück, Talanx, Allianz, BMW, BASF, Bayer, Bürovermietungen, Coworking, Kammern, Portale, Phantomeinträge.
+Priorität HOCH: Signale aus Gruppe "Hoch" (Neubau, Baugenehmigung, Finanzierungsrunde etc.)
+Priorität MITTEL: Signale aus Gruppe "Mittel" oder schwächere Treffer
+Wenn keine echten Firmen: "leads":[]`,
+        messages: [{ role: 'user', content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0, 3500)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname GmbH","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signalGruppe":"Hoch oder Mittel oder Hidden Gem","signale":[{"text":"Konkretes Signal mit Datum und Projektinhalt","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Trigger-Zeitpunkt nennen. Projektzeitraum nennen falls bekannt. 2-3 Saetze ohne Fachbegriffe.","ansprechpartner":{"name":"nicht oeffentlich","funktion":"Inhaber oder GF"}}]}` }]
       })
     });
     const formatData = await formatResp.json();
     if (formatData.error?.type === 'overloaded_error') return res.json({ error: { message: 'overloaded' } });
     if (formatData.error) return res.json({ error: formatData.error });
-
     const jsonText = (formatData.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-    return res.json({ _jsonText: jsonText, _dateRange: dates.range, _staedte: stadteListe });
+    return res.json({ _jsonText: jsonText, _dateRange: dates.range, _orte: orteListe });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
   }
 });
 
-// Company profile endpoint (Client Screening) - two-step
+// ── API: COMPANY PROFILE ────────────────────────────────────────
 app.post('/api/company', async (req, res) => {
-  const { apiKey, name, ort, branche, modus } = req.body;
+  const { apiKey, name, ort, branche } = req.body;
   if (!apiKey || !name) return res.status(400).json({ error: 'Missing params' });
 
-  const contactFocus = modus === 'grosskunde'
-    ? 'Facility Manager, Office Manager und Abteilungsleiter'
-    : 'Geschaeftsfuehrer und Inhaber';
+  // Textbausteine Vorlagen (MYWORKSPACE Tonalität)
+  const vorlagen = {
+    einstieg: [
+      `Wir sind verliebt in das Konzept des perfekten Büros – und [TRIGGER] hat unser Interesse an [FIRMENNAME] geweckt.`,
+      `[TRIGGER] – das ist genau der Moment, in dem wir als MYWORKSPACE gerne ins Gespräch kommen.`,
+      `Glückwunsch zu [TRIGGER]! Solche Veränderungen sind der ideale Zeitpunkt, die Arbeitswelt neu zu denken.`
+    ],
+    positionierung: `Als 360-Grad-Partner für Bürolösungen begleiten wir Unternehmen von der ersten Planung bis zur fertigen Einrichtung – Licht, Akustik, Ergonomie, Zonen und Design aus einer Hand.`,
+    bruecke: [
+      `Gerade in der frühen Planungsphase entstehen die wichtigsten Weichen für eine motivierende Arbeitsumgebung.`,
+      `Moderne Arbeitswelten sind mehr als Tische und Stühle – sie formen Kultur, Zusammenarbeit und Produktivität.`,
+      `Der richtige Zeitpunkt für eine ganzheitliche Bürolösung ist jetzt – bevor Entscheidungen getroffen sind.`
+    ],
+    cta: `Ich würde mich freuen, Ihnen in einem kurzen, unverbindlichen Gespräch zu zeigen, was für Ihr Unternehmen möglich ist.`
+  };
 
   try {
-    // STEP 1: Recherche mit Web-Suche (Freitext)
+    // STEP 1: Recherche mit Web-Suche
     const searchResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
@@ -179,7 +312,7 @@ app.post('/api/company', async (req, res) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 2500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: `Recherchiere alle verfuegbaren Informationen ueber die Firma "${name}" in ${ort} (Branche: ${branche}). Suche: Impressum (Adresse, Telefon, Email, GF-Name), Unternehmenswebsite, LinkedIn-Profil, aktuelle Pressemitteilungen. Beschreibe Unternehmenskultur, Design-Erscheinung, Wachstum und aktuelle News.` }]
+        messages: [{ role: 'user', content: `Recherchiere Informationen über "${name}" in ${ort} (${branche}). Suche: Impressum (Adresse, Telefon, E-Mail, GF-Name), Website, LinkedIn, aktuelle Pressemitteilungen, Mitarbeiterzahl, Kerngeschäft, aktuelle News und Wachstumssignale.` }]
       })
     });
     const searchData = await searchResp.json();
@@ -194,15 +327,15 @@ app.post('/api/company', async (req, res) => {
 
     await new Promise(r => setTimeout(r, 8000));
 
-    // STEP 2: JSON-Formatierung ohne Web-Suche
+    // STEP 2: JSON-Formatierung
     const formatResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 3000,
-        system: 'Gib NUR ein JSON-Objekt zurueck. Beginne mit { Kein Text. Kein Markdown. Alle Strings muessen valides JSON sein (keine Zeilenumbrueche in Strings).',
-        messages: [{ role: 'user', content: `Erstelle ein JSON-Objekt aus diesen Firmendaten. Alle Texte in einer Zeile (keine \n in Strings):\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"selbstbild":{"farben":{"beschreibung":"...","hex_codes":[]},"typografie":"...","bildwelt":"...","tonalitaet":"...","keywords":[]},"fremdbild":{"bewertungen":"...","medien":"...","recruiting":"..."},"wettbewerb":{"positionierung":"...","differenzierung":"...","segment":"Premium oder Mitte oder Budget","awards":"..."},"design_reife":{"stufe":2,"stufe_label":"...","begruendung":"..."},"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","aesthetik_praeferenz":"...","new_work_affinitaet":"mittel","new_work_begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend","wachstum_begruendung":"...","offene_stellen":"...","expansion_indikator":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","relevanz_vertrieb":"..."}],"budget":{"umsatz_schaetzung":"...","mitarbeiterzahl":"...","cluster":"Mid","cluster_begruendung":"...","produktempfehlung":"..."},"ansprechpartner":[{"name":"...","funktion":"${contactFocus}","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}],"empfehlung":"Konkreter Einstiegssatz fuer MYWORKSPACE","quellen":[{"label":"...","url":"..."}]}` }]
+        system: 'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig (kein \\n in Strings).',
+        messages: [{ role: 'user', content: `Erstelle JSON aus diesen Firmendaten:\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"wettbewerb":{"positionierung":"...","segment":"Premium/Mitte/Budget","differenzierung":"..."},"design_reife":{"stufe":2,"stufe_label":"Design-bewusst","begruendung":"..."},"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","new_work_affinitaet":"hoch/mittel/gering","new_work_begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend/stabil/sinkend","offene_stellen":"...","expansion_indikator":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","vertriebsrelevanz":"..."}],"budget":{"umsatz_schaetzung":"...","cluster":"Einstieg/Mid/Premium","produktempfehlung":"..."},"ansprechpartner":[{"name":"...","funktion":"GF oder Inhaber","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}],"quellen":[{"label":"...","url":"..."}]}` }]
       })
     });
     const formatData = await formatResp.json();
@@ -214,7 +347,7 @@ app.post('/api/company', async (req, res) => {
     let parsed = null;
     if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
 
-    return res.json({ _data: parsed, _raw: jsonText });
+    return res.json({ _data: parsed, _vorlagen: vorlagen });
 
   } catch (err) {
     return res.status(500).json({ error: { message: err.message } });
