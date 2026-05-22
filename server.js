@@ -221,12 +221,24 @@ app.post('/api/search', async (req, res) => {
 
 Suche PARALLEL nach Ortsnamen UND PLZ-Bereichen.
 
-Wichtig zur Zeitlogik:
-- Artikel/Meldungen erschienen: ${dates.from} bis ${dates.today} (letzte 12 Monate)  
-- Projektinhalt darf bis ${dates.until} in der Zukunft liegen (z.B. Neubau geplant 2027 = gültiger Lead!)
+KRITISCHE ZEITLOGIK – sehr wichtig:
+- Artikel/Meldungen erschienen: ${dates.from} bis ${dates.today} (letzte 12 Monate)
+- Projektfertigstellung muss NOCH IN DER ZUKUNFT liegen: nach ${dates.today}
+- Ideal: Projekte geplant für 2026, 2027, 2028, 2029
+- AUSSCHLIESSEN: Projekte die bereits abgeschlossen, bezogen oder eingeweiht wurden
+- AUSSCHLIESSEN: "bereits fertiggestellt", "wurde bezogen", "ist eröffnet", "abgeschlossen 2024/2025"
+- Wir suchen Firmen die sich GERADE VORBEREITEN – nicht die bereits eingezogen sind
+
+Bevorzugte Signale (Projekt noch offen):
+- Baugenehmigung beantragt oder erteilt
+- Spatenstich erfolgt, Bau läuft
+- Neubau/Umbau geplant für 2026-2029
+- Finanzierungsrunde für Expansion
+- Neue Niederlassung angekündigt aber noch nicht eröffnet
+- Mietvertrag für neue Fläche unterzeichnet
 
 Signale mit HOHER Priorität: ${signaleHoch}
-Signale mit MITTLERER Priorität: ${signaleMittel}  
+Signale mit MITTLERER Priorität: ${signaleMittel}
 Hidden Gems: ${signaleHiddenGem}
 
 Suche auch auf:
@@ -237,8 +249,8 @@ Suche auch auf:
 ${strictRule}
 Keine Konzerne, keine DAX-Unternehmen. Nur GmbH oder kleine inhabergeführte AGs.
 
-Für jede Firma: Name, Ort, PLZ falls bekannt, Branche, konkretes Signal mit Datum, URL, GF/Inhaber-Name falls im Impressum auffindbar.
-Ziel: 8-10 konkrete Firmennamen.` }]
+Für jede Firma: Name, Ort, PLZ falls bekannt, Branche, konkretes Signal mit Datum und geplantem Fertigstellungstermin, URL, GF/Inhaber-Name falls auffindbar.
+Ziel: 8-10 konkrete Firmennamen mit offenen, zukünftigen Projekten.` }]
       })
     });
     const searchData = await searchResp.json();
@@ -265,9 +277,10 @@ Ziel: 8-10 konkrete Firmennamen.` }]
         system: `Gib NUR ein JSON-Objekt zurück. Beginne mit {
 FILTER: ${strictRule}
 NIEMALS aufnehmen: DAX/MDAX-Konzerne, VW, Continental, TUI, Siemens, Deutsche Messe, Hannover Rück, Talanx, Allianz, BMW, BASF, Bayer, Bürovermietungen, Coworking, Kammern, Portale, Phantomeinträge.
-Priorität HOCH: Signale aus Gruppe "Hoch" (Neubau, Baugenehmigung, Finanzierungsrunde etc.)
-Priorität MITTEL: Signale aus Gruppe "Mittel" oder schwächere Treffer
-Wenn keine echten Firmen: "leads":[]`,
+NIEMALS aufnehmen: Firmen deren Projekt bereits abgeschlossen, bezogen oder eröffnet ist. Nur Projekte die noch IN DER ZUKUNFT liegen.
+Priorität HOCH: Projekt geplant 2026-2029 + starkes Signal (Baugenehmigung, Spatenstich, Finanzierungsrunde)
+Priorität MITTEL: Projekt noch offen aber schwächeres Signal oder Datum unklar
+Wenn keine echten offenen Projekte: "leads":[]`,
         messages: [{ role: 'user', content: `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText.substring(0, 3500)}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname GmbH","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signalGruppe":"Hoch oder Mittel oder Hidden Gem","signale":[{"text":"Konkretes Signal mit Datum und Projektinhalt","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Trigger-Zeitpunkt nennen. Projektzeitraum nennen falls bekannt. 2-3 Saetze ohne Fachbegriffe.","ansprechpartner":{"name":"nicht oeffentlich","funktion":"Inhaber oder GF"}}]}` }]
       })
     });
