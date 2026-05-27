@@ -197,9 +197,9 @@ app.post('/api/search', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: `Welche 5 Branchen sind wirtschaftlich stark in der Region ${orteListe}? Nutze dein Wissen über DAX/MDAX/TecDAX, ifo-Index, KfW-Förderungen, regionale Cluster. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze] ---` }]
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: `Welche 4 Branchen sind wirtschaftlich stark in der Region ${orteListe}? Nutze dein Wissen über DAX/MDAX/TecDAX, ifo-Index, KfW-Förderungen, regionale Cluster. Format: BRANCHE: [Name] | STAERKE: stark/moderat | BEGRUENDUNG: [2 Saetze] ---` }]
       })
     });
     const branchenData = await branchenResp.json();
@@ -214,10 +214,10 @@ app.post('/api/search', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast Live-Web-Suche. Dein Trainingsstichtag ist irrelevant. Suche jetzt aktiv im Web nach echten Firmennamen. Heute ist ${dates.today}.`,
+        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Fuehre maximal 3 gezielte Suchen durch, nicht mehr.`,
         messages: [{ role: 'user', content: `Suche nach inhabergeführten Mittelständlern (100-500 MA, mind. 30-40% Büroanteil) in diesen Orten: ${orteListe}${plzListe ? ` (PLZ-Bereiche: ${plzListe})` : ''}.
 
 Suche PARALLEL nach Ortsnamen UND PLZ-Bereichen.
@@ -274,7 +274,7 @@ Ziel: 8-10 konkrete Firmennamen mit offenen, zukünftigen Projekten.` }]
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        max_tokens: 2500,
         system: `Gib NUR ein JSON-Objekt zurück. Beginne mit {
 FILTER: ${strictRule}
 NIEMALS aufnehmen: DAX/MDAX-Konzerne, VW, Continental, TUI, Siemens, Deutsche Messe, Hannover Rück, Talanx, Allianz, BMW, BASF, Bayer, Bürovermietungen, Coworking, Kammern, Portale, Phantomeinträge.
@@ -323,8 +323,8 @@ app.post('/api/company', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2500,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Recherchiere Informationen über "${name}" in ${ort} (${branche}). Suche: Impressum (Adresse, Telefon, E-Mail, GF-Name), Website, LinkedIn, aktuelle Pressemitteilungen, Mitarbeiterzahl, Kerngeschäft, aktuelle News und Wachstumssignale.` }]
       })
@@ -347,7 +347,7 @@ app.post('/api/company', async (req, res) => {
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3000,
+        max_tokens: 1500,
         system: 'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig (kein \\n in Strings).',
         messages: [{ role: 'user', content: `Erstelle JSON aus diesen Firmendaten:\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"wettbewerb":{"positionierung":"...","segment":"Premium/Mitte/Budget","differenzierung":"..."},"design_reife":{"stufe":2,"stufe_label":"Design-bewusst","begruendung":"..."},"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","new_work_affinitaet":"hoch/mittel/gering","new_work_begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend/stabil/sinkend","offene_stellen":"...","expansion_indikator":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","vertriebsrelevanz":"..."}],"budget":{"umsatz_schaetzung":"...","cluster":"Einstieg/Mid/Premium","produktempfehlung":"..."},"ansprechpartner":[{"name":"...","funktion":"GF oder Inhaber","telefon":"nicht oeffentlich","email":"nicht oeffentlich"}],"quellen":[{"label":"...","url":"..."}]}` }]
       })
@@ -382,10 +382,10 @@ app.post('/api/projects', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast Live-Web-Suche. Nutze sie aktiv. Heute ist ${dates.today}.`,
+        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Maximal 3 Suchen durchfuehren.`,
         messages: [{ role: 'user', content: `Suche nach konkreten Büro-Bauprojekten (Neubau oder Umbau) in dieser Region: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
 
 Zeitlogik:
@@ -441,7 +441,7 @@ Ziel: 3-6 konkrete Projekte mit möglichst vollständigen Kontaktdaten.` }]
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        max_tokens: 2000,
         system: 'Gib NUR ein JSON-Array zurück. Beginne mit [ Kein Text. Kein Markdown. Alle Strings einzeilig.',
         messages: [{ role: 'user', content: `Extrahiere Bauprojekte aus diesem Text als JSON-Array. Nur Projekte mit Fertigstellung nach ${dates.plus6}. Nur Büroprojekte ab 500m².
 
