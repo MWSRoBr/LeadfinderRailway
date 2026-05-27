@@ -371,6 +371,16 @@ async function startSearch() {
 
     stopProg(true);
 
+    // Show debug if search failed
+    if (searchData.error || searchData._debug) {
+      var msg = (searchData.error && (searchData.error.message||searchData.error)) || 'Keine Ergebnisse';
+      if (msg === 'overloaded') msg = 'Der KI-Server ist gerade überlastet. Bitte 1-2 Minuten warten.';
+      if (msg === 'no_results') msg = 'Keine Ergebnisse. PLZ-Bereich erweitern oder Slider nach rechts stellen.';
+      st.className='status-msg err'; st.textContent=msg;
+      document.getElementById('results').innerHTML='<pre style="background:#f5f5f5;padding:12px;font-size:11px;font-family:monospace;white-space:pre-wrap">'+JSON.stringify(dbg,null,2)+'</pre>';
+      btn.disabled=false; return;
+    }
+
     var projects = projData.projects || [];
     var parsed = extractData(searchData._jsonText);
     var branchen = parsed ? (parsed.branchen||[]) : [];
