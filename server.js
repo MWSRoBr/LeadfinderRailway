@@ -449,7 +449,7 @@ Ziel: 3-6 konkrete Projekte mit möglichst vollständigen Kontaktdaten.` }]
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
-        system: 'Gib NUR ein JSON-Array zurück. Beginne mit [ Kein Text. Kein Markdown. Alle Strings einzeilig.',
+        system: `Gib NUR ein JSON-Array zurück. Beginne mit [ Kein Text. Kein Markdown. Alle Strings einzeilig. STRIKT AUSSCHLIESSEN: Jedes Projekt mit Fertigstellung vor ${dates.plus6} – diese nicht aufnehmen, auch nicht mit Hinweis. Nur Projekte mit Fertigstellung nach ${dates.plus6}.`,
         messages: [{ role: 'user', content: `Extrahiere Bauprojekte aus diesem Text als JSON-Array. Nur Projekte mit Fertigstellung nach ${dates.plus6}. Nur Büroprojekte ab 500m².
 
 ${rawText.substring(0,3500)}
