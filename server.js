@@ -217,7 +217,7 @@ app.post('/api/search', async (req, res) => {
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Fuehre maximal 3 gezielte Suchen durch, nicht mehr.`,
+        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Suche aktiv im Web. Dein Trainingsstichtag ist irrelevant.`,
         messages: [{ role: 'user', content: `Suche nach inhabergeführten Mittelständlern (100-500 MA, mind. 30-40% Büroanteil) in diesen Orten: ${orteListe}${plzListe ? ` (PLZ-Bereiche: ${plzListe})` : ''}.
 
 Suche PARALLEL nach Ortsnamen UND PLZ-Bereichen.
@@ -264,7 +264,14 @@ Ziel: 8-10 konkrete Firmennamen mit offenen, zukünftigen Projekten.` }]
       return '';
     }).filter(Boolean).join('\n').substring(0, 5000);
 
-    if (!rawText || rawText.length < 80) return res.json({ error: { message: 'no_results' } });
+    if (!rawText || rawText.length < 30) {
+      return res.json({ error: { message: 'no_results' }, _debug: {
+        blocks: (searchData.content||[]).map(b=>b.type),
+        rawLen: rawText.length,
+        preview: rawText.substring(0,300),
+        apiError: searchData.error||null
+      }});
+    }
 
     await new Promise(r => setTimeout(r, 8000));
 
@@ -385,7 +392,7 @@ app.post('/api/projects', async (req, res) => {
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Maximal 3 Suchen durchfuehren.`,
+        system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Suche aktiv.`,
         messages: [{ role: 'user', content: `Suche nach konkreten Büro-Bauprojekten (Neubau oder Umbau) in dieser Region: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
 
 Zeitlogik:
@@ -431,7 +438,7 @@ Ziel: 3-6 konkrete Projekte mit möglichst vollständigen Kontaktdaten.` }]
       return '';
     }).filter(Boolean).join('\n').substring(0, 5000);
 
-    if (!rawText || rawText.length < 50) return res.json({ error: { message: 'no_results' } });
+    if (!rawText || rawText.length < 30) return res.json({ error: { message: 'no_results' } });
 
     await new Promise(r => setTimeout(r, 8000));
 
