@@ -214,8 +214,8 @@ app.post('/api/search', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 3000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Suche aktiv im Web. Dein Trainingsstichtag ist irrelevant.`,
         messages: [{ role: 'user', content: `Suche nach inhabergeführten Mittelständlern (100-500 MA, mind. 30-40% Büroanteil) in diesen Orten: ${orteListe}${plzListe ? ` (PLZ-Bereiche: ${plzListe})` : ''}.
@@ -330,8 +330,8 @@ app.post('/api/company', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1500,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Recherchiere Informationen über "${name}" in ${ort} (${branche}). Suche: Impressum (Adresse, Telefon, E-Mail, GF-Name), Website, LinkedIn, aktuelle Pressemitteilungen, Mitarbeiterzahl, Kerngeschäft, aktuelle News und Wachstumssignale.` }]
       })
@@ -389,8 +389,8 @@ app.post('/api/projects', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        model: 'claude-sonnet-4-6',
+        max_tokens: 3000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Suche aktiv.`,
         messages: [{ role: 'user', content: `Suche nach konkreten Büro-Bauprojekten (Neubau oder Umbau) in dieser Region: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
