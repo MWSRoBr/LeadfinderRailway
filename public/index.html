@@ -383,6 +383,12 @@ async function startSearch() {
     }
 
     var projects = projData.projects || [];
+
+    // Debug: log what searchData contains
+    console.log('searchData keys:', Object.keys(searchData));
+    console.log('searchData.error:', searchData.error);
+    console.log('searchData._jsonText length:', (searchData._jsonText||'').length);
+
     var parsed = extractData(searchData._jsonText);
     var branchen = parsed ? (parsed.branchen||[]) : [];
     var leads = parsed ? (parsed.leads||[]) : [];
