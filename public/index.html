@@ -251,17 +251,24 @@ function getKey(){
 async function resolvePlz(){
   var plz=document.getElementById('plzInput').value.trim();
   if(!plz){alert('Bitte PLZ eingeben.');return;}
+  var apiKey=getKey(); if(!apiKey) return;
   var btn=document.getElementById('btnPlz'), st=document.getElementById('step1Status');
-  btn.disabled=true; btn.textContent='Wird ermittelt...'; st.textContent='';
+  btn.disabled=true; btn.textContent='Städte werden ermittelt...'; st.textContent='';
   try{
-    var resp=await fetch('/api/plz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plz})});
+    var resp=await fetch('/api/plz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plz,apiKey})});
     var data=await resp.json();
     if(data.error){st.className='status-msg err';st.textContent=typeof data.error==='string'?data.error:(data.error.message||'Fehler');btn.disabled=false;btn.textContent='Orte ermitteln';return;}
     orte=data.orte||[]; plzPrefixes=data.prefixes||[];
-    // searchCities will be filled after region resolver runs
-    // For now show placeholder - will be updated on search
-    searchCities = orte.slice(0,4);
-    extraCities = [];
+    extraCities=[];
+    // Use regionData from server to show correct search cities
+    if(data.regionData){
+      var rd=data.regionData;
+      var cities=[rd.region].concat(rd.top_staedte||[]);
+      if(rd.hidden_champion) cities.push(rd.hidden_champion);
+      searchCities=cities.filter(function(c,i){return c&&cities.indexOf(c)===i;});
+    } else {
+      searchCities=orte.slice(0,5);
+    }
     renderTags();
     document.getElementById('step2').classList.add('active');
     document.getElementById('step3').classList.add('active');
