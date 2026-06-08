@@ -199,23 +199,26 @@ app.post('/api/projects', async (req, res) => {
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = [
-      `site:baunetz.de OR site:bau.de ${region} Büro Neubau ${y2} ${y3}`,
-      `site:immobilien-zeitung.de OR site:zia-deutschland.de ${top_staedte[0]} Büroprojekt ${y1} ${y2}`,
       `${region} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
+      `${top_staedte[0]} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
       `${top_staedte[0]} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
-      `${top_staedte[1]||top_staedte[0]} Bürokomplex Neubau Architekt Bauantrag ${y2}`,
-      `${hidden_champion} Büro Neubau Projektentwicklung ${y1} ${y2}`
+      `${top_staedte[1]||top_staedte[0]} Bürokomplex Neubau Projektentwicklung Baustart ${y2}`,
+      `${hidden_champion} Büro Neubau Projektentwicklung Investor ${y1} ${y2}`,
+      `${region} Gewerbegebiet Bürofläche Projektentwickler Fertigstellung ${y2} ${y3}`,
+      `${top_staedte[0]} Architekt Bürogebäude Bauantrag Genehmigung ${y2} ${y3}`
     ].filter(q => q.trim());
 
     console.log('Project queries:', queries);
     let results = await Promise.all(queries.map(q => firecrawlSearch(q, 5).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
     let rawText = results.join('\n\n===\n\n').substring(0, 14000);
+    console.log('Project rawText length:', rawText.length);
 
     // Fallback: breitere Suche wenn Ergebnis mager
-    if (!rawText || rawText.length < 200) {
+    if (!rawText || rawText.length < 500) {
       console.log('Project fallback query triggered');
       const fallback = await firecrawlSearch(`${region} Bürogebäude Bauprojekt ${y1} ${y2} ${y3}`, 6).catch(() => '');
       rawText = fallback.substring(0, 14000);
+      console.log('Project fallback rawText length:', rawText.length);
     }
 
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
@@ -278,12 +281,14 @@ app.post('/api/search', async (req, res) => {
     console.log('Company queries:', queries);
     let results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
     let rawText = results.join('\n\n===\n\n').substring(0, 14000);
+    console.log('Company rawText length:', rawText.length);
 
     // Fallback: allgemeinere Signalsuche
-    if (!rawText || rawText.length < 200) {
+    if (!rawText || rawText.length < 500) {
       console.log('Company fallback query triggered');
       const fallback = await firecrawlSearch(`${reg} Unternehmen Büro Umzug Expansion ${cy}`, 6).catch(() => '');
       rawText = fallback.substring(0, 14000);
+      console.log('Company fallback rawText length:', rawText.length);
     }
 
     if (!rawText || rawText.length < 30) {
@@ -328,11 +333,15 @@ app.post('/api/company', async (req, res) => {
   };
 
   try {
-    // Firecrawl: search for company details
-    const rawText = await firecrawlSearch(`"${name}" ${ort} Geschäftsführer Mitarbeiter Expansion Büro`, 5);
+    // Zwei parallele Queries: Kontaktdaten + Signale getrennt
+    const [rawContacts, rawSignals] = await Promise.all([
+      firecrawlSearch(`"${name}" ${ort} Geschäftsführer Inhaber Gründer`, 4).catch(() => ''),
+      firecrawlSearch(`"${name}" ${ort} Expansion Büro Standort Mitarbeiter`, 4).catch(() => '')
+    ]);
+    const rawText = [rawContacts, rawSignals].join('\n\n===\n\n').substring(0, 14000);
 
     const jsonText = await claudeSonnet(apiKey,
-      'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig.',
+      'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. PRIORITÄT: Echte Namen von Geschäftsführern, Inhabern oder Gründern aus den Suchergebnissen extrahieren – auch aus Presseartikeln, Interviews, Impressum-Seiten oder LinkedIn-Erwähnungen. Wenn ein Name gefunden wird, unbedingt eintragen. Nur wenn wirklich kein Name vorkommt: "nicht öffentlich".',
       `Firmendaten aus Suchergebnissen:\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"ansprechpartner":[{"name":"...","funktion":"GF oder Inhaber oder Office Manager oder Facility Manager","telefon":"...","email":"..."}],"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","new_work_affinitaet":"hoch/mittel/gering","new_work_begruendung":"..."},"design_reife":{"stufe":2,"stufe_label":"...","begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend/stabil/sinkend","offene_stellen":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","vertriebsrelevanz":"..."}],"budget":{"umsatz_schaetzung":"...","cluster":"Einstieg/Mid/Premium","produktempfehlung":"..."},"quellen":[{"label":"...","url":"..."}]}`,
       2000
     );
