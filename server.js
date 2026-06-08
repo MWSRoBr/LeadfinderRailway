@@ -159,12 +159,21 @@ Städte: ${orte.slice(0,30).join(', ')}
 }
 
 // ── PLZ RESOLVE ─────────────────────────────────────────────────
-app.post('/api/plz', (req, res) => {
-  const { plz } = req.body;
+app.post('/api/plz', async (req, res) => {
+  const { plz, apiKey } = req.body;
   if (!plz) return res.status(400).json({ error: 'Missing plz' });
   const result = parsePlzInput(plz);
   if (!result.orte.length) return res.json({ error: 'PLZ-Bereich nicht erkannt.' });
-  return res.json({ orte: result.orte, prefixes: result.prefixes });
+
+  // Resolve region and key cities immediately
+  let regionData = { region: result.orte[0], top_staedte: result.orte.slice(1,4), hidden_champion: result.orte[4]||'' };
+  if (apiKey) {
+    try {
+      regionData = await getRegionAndCities(apiKey, result.prefixes, result.orte);
+    } catch(e) {}
+  }
+
+  return res.json({ orte: result.orte, prefixes: result.prefixes, regionData });
 });
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
