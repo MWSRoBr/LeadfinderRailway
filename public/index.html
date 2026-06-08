@@ -173,6 +173,12 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div class="main">
+  <div style="background:var(--bg);border:1.5px solid var(--border);border-left:4px solid var(--green);border-radius:8px;padding:18px 22px;margin-bottom:36px;font-size:13px;line-height:1.7;color:var(--text-mid)">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:8px">Wie funktioniert das Tool?</div>
+    <strong style="color:var(--text)">Schritt 1:</strong> PLZ-Gebiet eingeben – das Tool findet automatisch alle Städte in deiner Region.<br>
+    <strong style="color:var(--text)">Schritt 2:</strong> Das Tool sucht gleichzeitig nach zwei Dingen: <strong>geplanten Büro-Bauprojekten</strong> (Neubau oder Umbau ab 500m², Fertigstellung mind. 6 Monate in der Zukunft) und <strong>wachsenden inhabergeführten Unternehmen</strong> (ab 50 Mitarbeiter, mit frischen Expansionssignalen aus den letzten 12 Monaten).<br>
+    <strong style="color:var(--text)">Wichtig:</strong> Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.
+  </div>
   <div class="step active" id="step1">
     <div class="step-num">Schritt 1 von 3</div>
     <div class="step-title">In welchem PLZ-Gebiet suchst du?</div>
@@ -325,7 +331,7 @@ async function startSearch(strictness){
 
     var msgs=[];
     if(projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
-    if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+' Firma'+(leads.length===1?'':'en')+' ('+h+' Hoch)');}
+    if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+(leads.length===1?' Firma':' Firmen')+' ('+h+' Hoch)');}
     if(msgs.length){st.className='status-msg ok';st.textContent=msgs.join(' · ');}
     else{
       st.className='status-msg err';
@@ -375,7 +381,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
   // Projects block
   if(projects&&projects.length){
     window._projects=projects;
-    html+='<div class="block-section"><div class="block-head"><div class="block-title">Geplante Bauprojekte</div><div class="block-meta">'+projects.length+' Projekt'+(projects.length===1?'':'e')+(projRange?' &nbsp;&middot;&nbsp; '+esc(projRange):'')+'</div></div>';
+    html+='<div class="block-section"><div class="block-head"><div class="block-title">Geplante Bauprojekte in deiner Region</div><div class="block-meta">'+projects.length+' Projekt'+(projects.length===1?'':'e')+(projRange?' &nbsp;&middot;&nbsp; '+esc(projRange):'')+'</div></div>';
     projects.forEach(function(p,idx){
       var kontakte=(p.kontakte||[]).slice().sort(function(a,b){return rolePrio(a.rolle)-rolePrio(b.rolle);});
       var contactsHtml=kontakte.map(function(k,ci){
@@ -413,7 +419,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     var hoch=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';});
     var sorted=hoch.concat(leads.filter(function(l){return(l.prioritaet||'').toLowerCase()!=='hoch';}));
     window._leads=sorted;
-    html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
+    html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen in deiner Region</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
     html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
       if(currentStrictness==='breit') l._unsicher=true;
