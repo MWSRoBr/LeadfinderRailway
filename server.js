@@ -212,7 +212,7 @@ app.post('/api/search', async (req, res) => {
     const rawText = results.join('\n\n===\n\n').substring(0, 6000);
 
     if (!rawText || rawText.length < 30) {
-      return res.json({ error: { message: 'no_results' } });
+      return res.json({ error: { message: 'no_results' }, _debug: { rawLen: rawText.length, preview: rawText.substring(0,200), firecrawlKey: FIRECRAWL_KEY ? 'set' : 'MISSING' } });
     }
 
     const signaleHoch = 'Neubau, Umbau, Erweiterungsbau, Baugenehmigung, Finanzierungsrunde, Kapitalerhöhung, KfW-Förderung';
@@ -229,7 +229,7 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       2000
     );
 
-    return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region });
+    return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _debug: { rawLen: rawText.length, preview: rawText.substring(0,300) } });
 
   } catch (err) {
     const msg = err.message === 'overloaded' ? 'overloaded' : err.message;
