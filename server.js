@@ -143,6 +143,21 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
+// ── REGION RESOLVER ─────────────────────────────────────────────
+async function getRegionAndCities(apiKey, plzPrefixes, orte) {
+  const text = await claudeHaiku(apiKey, '',
+    `Du bekommst PLZ-Präfixe und Städtenamen einer deutschen Region. Gib NUR ein JSON-Objekt zurück.
+PLZ-Präfixe: ${plzPrefixes.join(', ')}
+Städte: ${orte.slice(0,30).join(', ')}
+
+{"region":"Regionsbegriff (z.B. Rheinland, Ruhrgebiet, Rhein-Main, Schwaben)","top_staedte":["Stadt1","Stadt2","Stadt3"],"hidden_champion":"wirtschaftlich bedeutende Stadt die nicht in top_staedte ist (z.B. Monheim, Leinfelden-Echterdingen)"}`,
+    300
+  );
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) { try { return JSON.parse(match[0]); } catch(e) {} }
+  return { region: orte[0], top_staedte: orte.slice(0,3), hidden_champion: orte[3] || '' };
+}
+
 // ── PLZ RESOLVE ─────────────────────────────────────────────────
 app.post('/api/plz', (req, res) => {
   const { plz } = req.body;
@@ -161,14 +176,18 @@ app.post('/api/projects', async (req, res) => {
   const allOrte = orte.join(', ');
 
   try {
-    // Firecrawl: search for building projects
+    // Resolve region and key cities
+    const regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
+    const { region, top_staedte, hidden_champion } = regionData;
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = [
-      `${allOrte} Bürogebäude Neubau Projektentwickler Fertigstellung ${y2} ${y3}`,
-      `${allOrte} Büroimmobilie Baugenehmigung ${y1} ${y2}`,
-      `${allOrte} Bürokomplex Revitalisierung Umbau ${y2} ${y3}`
-    ];
+      `${region} Bürogebäude Neubau Projektentwickler Fertigstellung ${y2} ${y3}`,
+      `${top_staedte[0]} Büroimmobilie Neubau Baugenehmigung ${y1} ${y2}`,
+      `${top_staedte[1]||top_staedte[0]} Bürokomplex Revitalisierung Umbau ${y2} ${y3}`,
+      `${top_staedte[2]||top_staedte[0]} Bürogebäude Projektentwicklung ${y2}`,
+      `${hidden_champion} Büro Neubau Wachstum ${y1} ${y2}`
+    ].filter(q => q.trim());
 
     console.log('Project queries:', queries);
     const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
@@ -217,14 +236,17 @@ app.post('/api/search', async (req, res) => {
       600
     );
 
-    // Firecrawl: search for companies
+    // Resolve region and key cities
+    const regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
+    const { region: reg, top_staedte: topS, hidden_champion: hc } = regionData;
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
-      `${allOrte} GmbH Expansion Büro Wachstum ${py} ${cy}`,
-      `${allOrte} Unternehmen neuer Standort inhabergeführt ${cy}`,
-      `${allOrte} Firma expandiert Mitarbeiter Wachstum ${py} ${cy}`
-    ];
+      `${reg} GmbH Expansion Büro Wachstum ${py} ${cy}`,
+      `${topS[0]} Unternehmen neuer Standort inhabergeführt ${cy}`,
+      `${topS[1]||topS[0]} Firma Wachstum Mitarbeiter ${py} ${cy}`,
+      `${hc} GmbH expandiert Büro ${py} ${cy}`
+    ].filter(q => q.trim());
 
     console.log('Project queries:', queries);
     const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
