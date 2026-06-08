@@ -173,8 +173,8 @@ app.post('/api/projects', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Suche aktiv.`,
         messages: [{ role: 'user', content: `Suche nach geplanten Büro-Bauprojekten (Neubau oder Umbau) in: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
@@ -219,7 +219,7 @@ Ziel: 3-8 Projekte mit möglichst vollständigen Kontaktdaten.` }]
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3000,
+        max_tokens: 1500,
         system: `Gib NUR ein JSON-Array zurück. Beginne mit [ Kein Text. Kein Markdown. Alle Strings einzeilig. AUSSCHLIESSEN: Projekte mit Fertigstellung vor ${dates.plus6}.`,
         messages: [{ role: 'user', content: `Extrahiere Bauprojekte als JSON. Nur Fertigstellung nach ${dates.plus6}, nur ab 500m²:\n\n${rawText.substring(0, 3500)}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"...","bueroflaeche":"...","arbeitsplaetze":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"...","kontakte":[{"rolle":"Innenarchitekt oder Interieur-Designer oder Auftraggeber oder Architekt oder Mieter","firma":"...","ansprechpartner":"...","adresse":"...","telefon":"...","email":"...","url":"..."}],"quelleUrl":"https://...","alleDaten":{}}]` }]
       })
@@ -284,7 +284,7 @@ app.post('/api/search', async (req, res) => {
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
+        max_tokens: 1500,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         system: `Du hast Live-Web-Suche. Heute ist ${dates.today}. Dein Trainingsstichtag ist irrelevant.`,
         messages: [{ role: 'user', content: `Suche nach inhabergeführten Unternehmen ab 50 Mitarbeitern in: ${orteListe}${plzListe ? ` (PLZ: ${plzListe})` : ''}.
@@ -333,7 +333,7 @@ Ziel: 6-10 Firmennamen.` }]
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 3000,
+        max_tokens: 1500,
         system: `Gib NUR ein JSON-Objekt zurück. Beginne mit {
 ${strictRule}
 NICHT aufnehmen: DAX-Konzerne (VW, Continental, TUI, Siemens, BMW, BASF, Bayer, Allianz, Lufthansa etc.), Bürovermietungen, Coworking, Kammern, Portale, Phantomeinträge.
@@ -382,8 +382,8 @@ app.post('/api/company', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'web-search-2025-03-05' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: `Recherchiere alle verfügbaren Infos über "${name}" in ${ort} (${branche}). Suche: Impressum (Adresse, Telefon, E-Mail), Website, LinkedIn, Pressemitteilungen, Mitarbeiterzahl, Kerngeschäft, News. Suche auch nach: Geschäftsführer, Inhaber, Office Manager, Facility Manager, Assistenz der Geschäftsleitung – alle Namen und Kontaktdaten die öffentlich zugänglich sind.` }]
       })
