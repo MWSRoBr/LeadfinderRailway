@@ -196,9 +196,9 @@ app.post('/api/projects', async (req, res) => {
 
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
 
-    const jsonText = await claudeHaiku(apiKey,
-      `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. AUSSCHLIESSEN: Projekte mit Fertigstellung vor ${dates.plus6}.`,
-      `Extrahiere Büro-Bauprojekte aus diesen Suchergebnissen. Nur Projekte ab 500m² mit Fertigstellung nach ${dates.plus6}.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"...","bueroflaeche":"...","arbeitsplaetze":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"...","kontakte":[{"rolle":"Innenarchitekt oder Auftraggeber oder Architekt oder Mieter","firma":"...","ansprechpartner":"...","adresse":"...","telefon":"...","email":"...","url":"..."}],"quelleUrl":"https://..."}]`,
+    const jsonText = await claudeSonnet(apiKey,
+      `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. AUSSCHLIESSEN: Projekte mit Fertigstellung vor ${dates.plus6}. Wenn keine passenden Projekte: leeres Array [].`,
+      `Analysiere diese Suchergebnisse und extrahiere alle Büro-Bauprojekte (Neubau oder Umbau). Kriterien: ab 500m² Bürofläche, Fertigstellung nach ${dates.plus6}. Sei großzügig bei der Erkennung – auch Projekte bei denen nicht alle Daten bekannt sind aufnehmen.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"...","bueroflaeche":"...","arbeitsplaetze":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"...","kontakte":[{"rolle":"Innenarchitekt oder Auftraggeber oder Architekt oder Mieter","firma":"...","ansprechpartner":"...","adresse":"...","telefon":"...","email":"...","url":"..."}],"quelleUrl":"https://..."}]`,
       2000
     );
 
@@ -271,7 +271,7 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       2000
     );
 
-    return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _debug: { rawLen: rawText.length, preview: rawText.substring(0,300) } });
+    return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _regionData: regionData });
 
   } catch (err) {
     const msg = err.message === 'overloaded' ? 'overloaded' : err.message;
