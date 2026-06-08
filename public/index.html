@@ -227,7 +227,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <script>
-var orte=[], plzPrefixes=[], pInterval=null;
+var orte=[], plzPrefixes=[], pInterval=null, currentStrictness='ausgewogen';
 window._leads=[], window._projects=[];
 
 function getKey(){
@@ -291,6 +291,7 @@ function stopProg(ok){
 
 async function startSearch(strictness){
   strictness = strictness || 'ausgewogen';
+  currentStrictness = strictness;
   if(!orte.length){alert('Bitte zuerst einen PLZ-Bereich eingeben.');return;}
   var apiKey=getKey(); if(!apiKey) return;
   var btn=document.getElementById('btnStart'), st=document.getElementById('searchStatus');
@@ -328,7 +329,7 @@ async function startSearch(strictness){
     if(msgs.length){st.className='status-msg ok';st.textContent=msgs.join(' · ');}
     else{
       st.className='status-msg err';
-      if(strictness==='breit'){
+      if(currentStrictness==='breit'){
         st.textContent='Auch mit erweitertem Filter keine Ergebnisse. Bitte PLZ-Bereich anpassen.';
       } else {
         st.textContent='Keine Ergebnisse mit aktuellem Filter.';
@@ -415,7 +416,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
     html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
-      if(strictness==='breit') l._unsicher=true;
+      if(currentStrictness==='breit') l._unsicher=true;
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
       var sigs=l.signale||[];
       if(!sigs.length&&l.trigger) sigs=[{text:l.trigger,url:l.triggerQuelle}];
