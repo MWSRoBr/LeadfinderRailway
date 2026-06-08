@@ -169,7 +169,9 @@ app.post('/api/projects', async (req, res) => {
       `${region} Büro Umbau Revitalisierung Fertigstellung ${y2} ${y3}`
     ];
 
-    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(() => '')));
+    console.log('Project queries:', queries);
+    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
+    console.log('Project results lengths:', results.map(r => r.length));
     const rawText = results.join('\n\n===\n\n').substring(0, 8000);
 
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
@@ -220,7 +222,9 @@ app.post('/api/search', async (req, res) => {
       `${region} Firma expandiert Mitarbeiter Wachstum ${py} ${cy}`
     ];
 
-    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(() => '')));
+    console.log('Project queries:', queries);
+    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
+    console.log('Project results lengths:', results.map(r => r.length));
     const rawText = results.join('\n\n===\n\n').substring(0, 6000);
 
     if (!rawText || rawText.length < 30) {
