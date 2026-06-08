@@ -158,15 +158,16 @@ app.post('/api/projects', async (req, res) => {
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
+  const allOrte = orte.join(', ');
 
   try {
     // Firecrawl: search for building projects
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = [
-      `${region} Büro Neubau geplant ${y1} ${y2} ${y3}`,
-      `${region} Bürogebäude Baugenehmigung Projektentwicklung ${y1} ${y2}`,
-      `${region} Büro Umbau Revitalisierung Fertigstellung ${y2} ${y3}`
+      `${allOrte} Bürogebäude Neubau Projektentwickler Fertigstellung ${y2} ${y3}`,
+      `${allOrte} Büroimmobilie Baugenehmigung ${y1} ${y2}`,
+      `${allOrte} Bürokomplex Revitalisierung Umbau ${y2} ${y3}`
     ];
 
     console.log('Project queries:', queries);
@@ -201,7 +202,8 @@ app.post('/api/search', async (req, res) => {
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
-  const plzListe = plzPrefixes ? plzPrefixes.slice(0,4).map(p=>p+'xxx').join(', ') : '';
+  const allOrte = orte.join(', ');
+  const plzListe = plzPrefixes ? plzPrefixes.map(p=>p+'xxx').join(', ') : '';
 
   const strictRule = strictness === 'breit'
     ? 'Auch schwächere Signale. Mehr Treffer, auch vagere.'
@@ -219,9 +221,9 @@ app.post('/api/search', async (req, res) => {
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
-      `${region} GmbH Expansion Büro Wachstum ${py} ${cy}`,
-      `${region} Unternehmen neuer Standort inhabergeführt ${cy}`,
-      `${region} Firma expandiert Mitarbeiter Wachstum ${py} ${cy}`
+      `${allOrte} GmbH Expansion Büro Wachstum ${py} ${cy}`,
+      `${allOrte} Unternehmen neuer Standort inhabergeführt ${cy}`,
+      `${allOrte} Firma expandiert Mitarbeiter Wachstum ${py} ${cy}`
     ];
 
     console.log('Project queries:', queries);
