@@ -104,7 +104,7 @@ async function firecrawlSearch(query, limit = 5) {
   });
   const data = await resp.json();
   if (!data.success) throw new Error(data.error || 'Firecrawl error');
-  return (data.data || []).map(r => `[${r.title||''}](${r.url||''})\n${r.markdown||r.description||''}`).join('\n\n---\n\n').substring(0, 6000);
+  return (data.data || []).map(r => `[${r.title||''}](${r.url||''})\n${r.markdown||r.description||''}`).join('\n\n---\n\n').substring(0, 14000);
 }
 
 async function claudeSonnet(apiKey, system, userMsg, maxTokens = 2000) {
@@ -199,17 +199,24 @@ app.post('/api/projects', async (req, res) => {
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = [
-      `${region} Bürogebäude Neubau Projektentwickler Fertigstellung ${y2} ${y3}`,
-      `${top_staedte[0]} Büroimmobilie Neubau Baugenehmigung ${y1} ${y2}`,
-      `${top_staedte[1]||top_staedte[0]} Bürokomplex Revitalisierung Umbau ${y2} ${y3}`,
-      `${top_staedte[2]||top_staedte[0]} Bürogebäude Projektentwicklung ${y2}`,
-      `${hidden_champion} Büro Neubau Wachstum ${y1} ${y2}`
+      `site:baunetz.de OR site:bau.de ${region} Büro Neubau ${y2} ${y3}`,
+      `site:immobilien-zeitung.de OR site:zia-deutschland.de ${top_staedte[0]} Büroprojekt ${y1} ${y2}`,
+      `${region} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
+      `${top_staedte[0]} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
+      `${top_staedte[1]||top_staedte[0]} Bürokomplex Neubau Architekt Bauantrag ${y2}`,
+      `${hidden_champion} Büro Neubau Projektentwicklung ${y1} ${y2}`
     ].filter(q => q.trim());
 
     console.log('Project queries:', queries);
-    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
-    console.log('Project results lengths:', results.map(r => r.length));
-    const rawText = results.join('\n\n===\n\n').substring(0, 8000);
+    let results = await Promise.all(queries.map(q => firecrawlSearch(q, 5).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
+    let rawText = results.join('\n\n===\n\n').substring(0, 14000);
+
+    // Fallback: breitere Suche wenn Ergebnis mager
+    if (!rawText || rawText.length < 200) {
+      console.log('Project fallback query triggered');
+      const fallback = await firecrawlSearch(`${region} Bürogebäude Bauprojekt ${y1} ${y2} ${y3}`, 6).catch(() => '');
+      rawText = fallback.substring(0, 14000);
+    }
 
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
 
@@ -260,16 +267,24 @@ app.post('/api/search', async (req, res) => {
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
-      `${topS[0]} Unternehmen expandiert neues Büro ${cy}`,
-      `${topS[0]} GmbH Pressemitteilung Expansion Standort ${py} ${cy}`,
-      `${topS[1]||topS[0]} inhabergeführt Wachstum neuer Standort ${cy}`,
-      `${hc||topS[2]||topS[0]} GmbH expandiert Büro Mitarbeiter ${cy}`
+      `${topS[0]} GmbH Umzug neues Büro Einweihung ${cy}`,
+      `${topS[0]} inhabergeführt Expansion Standorteröffnung ${py} ${cy}`,
+      `${topS[1]||topS[0]} Mittelstand Bürofläche Wachstum Neueinstellungen ${cy}`,
+      `${hc||topS[2]||topS[0]} GmbH neuer Standort Pressemitteilung ${cy}`,
+      `${reg} Unternehmen Baugenehmigung Bürogebäude Eigennutzer ${cy}`,
+      `${topS[0]} Architekturbüro Planungsbüro Ingenieurbüro Expansion ${cy}`
     ].filter(q => q.trim());
 
-    console.log('Project queries:', queries);
-    const results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
-    console.log('Project results lengths:', results.map(r => r.length));
-    const rawText = results.join('\n\n===\n\n').substring(0, 6000);
+    console.log('Company queries:', queries);
+    let results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
+    let rawText = results.join('\n\n===\n\n').substring(0, 14000);
+
+    // Fallback: allgemeinere Signalsuche
+    if (!rawText || rawText.length < 200) {
+      console.log('Company fallback query triggered');
+      const fallback = await firecrawlSearch(`${reg} Unternehmen Büro Umzug Expansion ${cy}`, 6).catch(() => '');
+      rawText = fallback.substring(0, 14000);
+    }
 
     if (!rawText || rawText.length < 30) {
       return res.json({ error: { message: 'no_results' }, _debug: { rawLen: rawText.length, preview: rawText.substring(0,200), firecrawlKey: FIRECRAWL_KEY ? 'set' : 'MISSING' } });
@@ -314,7 +329,7 @@ app.post('/api/company', async (req, res) => {
 
   try {
     // Firecrawl: search for company details
-    const rawText = await firecrawlSearch(`"${name}" ${ort} Impressum Geschäftsführer Mitarbeiter`, 5);
+    const rawText = await firecrawlSearch(`"${name}" ${ort} Geschäftsführer Mitarbeiter Expansion Büro`, 5);
 
     const jsonText = await claudeSonnet(apiKey,
       'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig.',
