@@ -131,6 +131,18 @@ async function claudeHaiku(apiKey, system, userMsg, maxTokens = 1500) {
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
+// ── TEST ENDPOINT ───────────────────────────────────────────────
+app.get('/api/test', async (req, res) => {
+  const key = FIRECRAWL_KEY;
+  if (!key) return res.json({ status: 'ERROR', message: 'FIRECRAWL_KEY not set' });
+  try {
+    const result = await firecrawlSearch('Köln GmbH Büro 2026', 2);
+    return res.json({ status: 'OK', keySet: true, resultLength: result.length, preview: result.substring(0,300) });
+  } catch(err) {
+    return res.json({ status: 'ERROR', message: err.message, keySet: !!key });
+  }
+});
+
 // ── PLZ RESOLVE ─────────────────────────────────────────────────
 app.post('/api/plz', (req, res) => {
   const { plz } = req.body;
