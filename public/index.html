@@ -173,11 +173,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div class="main">
-  <div style="background:var(--bg);border:1.5px solid var(--border);border-left:4px solid var(--green);border-radius:8px;padding:18px 22px;margin-bottom:36px;font-size:13px;line-height:1.7;color:var(--text-mid)">
-    <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green);margin-bottom:8px">Wie funktioniert das Tool?</div>
-    <strong style="color:var(--text)">Schritt 1:</strong> PLZ-Gebiet eingeben – das Tool findet automatisch alle Städte in deiner Region.<br>
-    <strong style="color:var(--text)">Schritt 2:</strong> Das Tool sucht gleichzeitig nach zwei Dingen: <strong>geplanten Büro-Bauprojekten</strong> (Neubau oder Umbau ab 500m², Fertigstellung mind. 6 Monate in der Zukunft) und <strong>wachsenden inhabergeführten Unternehmen</strong> (ab 50 Mitarbeiter, mit frischen Expansionssignalen aus den letzten 12 Monaten).<br>
-    <strong style="color:var(--text)">Wichtig:</strong> Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.
+  <div style="margin-bottom:40px">
+    <div style="font-family:'EB Garamond',serif;font-size:28px;font-weight:400;margin-bottom:10px">Wie funktioniert das Tool?</div>
+    <div style="font-size:15px;color:var(--text-mid);line-height:1.8">
+      Gib deinen PLZ-Bereich ein. Das Tool ermittelt daraus automatisch die Region sowie die wirtschaftlich wichtigsten Städte – darunter die 3 größten und die wirtschaftlich stärkste Stadt, die nicht zu den Top 3 gehört.<br>
+      Gesucht wird gleichzeitig nach <strong style="color:var(--text)">geplanten Büro-Bauprojekten</strong> (Neubau oder Umbau, ab 500m², Fertigstellung mind. 6 Monate in der Zukunft) und <strong style="color:var(--text)">wachsenden inhabergeführten Unternehmen</strong> (ab 50 Mitarbeiter, Expansionssignale aus den letzten 12 Monaten).<br>
+      <span style="color:var(--text-muted);font-size:13px">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
+    </div>
   </div>
   <div class="step active" id="step1">
     <div class="step-num">Schritt 1 von 3</div>
@@ -194,12 +196,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   <div class="step" id="step2">
     <div class="step-num">Schritt 2 von 3</div>
     <div class="step-title">Deine Suchregion</div>
-    <div class="step-desc">Diese Orte werden durchsucht. Du kannst Orte entfernen oder weitere hinzufügen.</div>
+    <div class="step-desc">Das Tool sucht in diesen Städten. Du kannst bis zu 2 weitere Städte hinzufügen.</div>
     <div class="tags-wrap" id="tagsWrap"></div>
-    <div class="add-row">
-      <input type="text" class="add-input" id="addInput" placeholder="Ort hinzufügen..." />
+    <div class="add-row" id="addRow">
+      <input type="text" class="add-input" id="addInput" placeholder="Stadt hinzufügen..." />
       <button class="btn-add" onclick="addOrt()">+ Hinzufügen</button>
     </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px" id="addHint"></div>
   </div>
 
   <div class="step" id="step3">
@@ -234,6 +237,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 
 <script>
 var orte=[], plzPrefixes=[], pInterval=null, currentStrictness='ausgewogen';
+var searchCities=[], extraCities=[];
 window._leads=[], window._projects=[];
 
 function getKey(){
@@ -254,6 +258,10 @@ async function resolvePlz(){
     var data=await resp.json();
     if(data.error){st.className='status-msg err';st.textContent=typeof data.error==='string'?data.error:(data.error.message||'Fehler');btn.disabled=false;btn.textContent='Orte ermitteln';return;}
     orte=data.orte||[]; plzPrefixes=data.prefixes||[];
+    // searchCities will be filled after region resolver runs
+    // For now show placeholder - will be updated on search
+    searchCities = orte.slice(0,4);
+    extraCities = [];
     renderTags();
     document.getElementById('step2').classList.add('active');
     document.getElementById('step3').classList.add('active');
@@ -262,12 +270,33 @@ async function resolvePlz(){
 }
 
 function renderTags(){
-  document.getElementById('tagsWrap').innerHTML=orte.map(function(o,i){
-    return '<div class="tag">'+esc(o)+'<span class="tag-x" onclick="removeOrt('+i+')">&times;</span></div>';
+  var allSearch = searchCities.concat(extraCities);
+  var html = searchCities.map(function(o){
+    return '<div class="tag">'+esc(o)+'</div>';
   }).join('');
+  html += extraCities.map(function(o,i){
+    return '<div class="tag" style="background:#555">'+esc(o)+'<span class="tag-x" onclick="removeExtra('+i+')">&times;</span></div>';
+  }).join('');
+  document.getElementById('tagsWrap').innerHTML=html;
+  var hint = document.getElementById('addHint');
+  var addRow = document.getElementById('addRow');
+  if(extraCities.length>=2){
+    addRow.style.display='none';
+    if(hint) hint.textContent='Maximale Anzahl zusätzlicher Städte erreicht (2).';
+  } else {
+    addRow.style.display='flex';
+    if(hint) hint.textContent='';
+  }
 }
-function removeOrt(i){orte.splice(i,1);renderTags();}
-function addOrt(){var v=document.getElementById('addInput').value.trim();if(v&&!orte.includes(v)){orte.push(v);renderTags();}document.getElementById('addInput').value='';}
+function removeExtra(i){extraCities.splice(i,1);renderTags();}
+function addOrt(){
+  var v=document.getElementById('addInput').value.trim();
+  if(!v) return;
+  if(extraCities.length>=2){return;}
+  if(!searchCities.includes(v)&&!extraCities.includes(v)){extraCities.push(v);}
+  document.getElementById('addInput').value='';
+  renderTags();
+}
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&document.activeElement.id==='addInput') addOrt();
   if(e.key==='Enter'&&document.activeElement.id==='plzInput') resolvePlz();
@@ -306,9 +335,11 @@ async function startSearch(strictness){
   startProg();
 
   try{
+    // Send all orte (for region resolver) + extraCities
+    var searchOrte = orte.concat(extraCities.filter(function(c){return !orte.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
-      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte,plzPrefixes})}),
-      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte,plzPrefixes,strictness})})
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes})}),
+      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})})
     ]);
     var [projData,searchData]=await Promise.all([projResp.json(),searchResp.json()]);
 
@@ -323,6 +354,13 @@ async function startSearch(strictness){
     }
 
     var projects=projData.projects||[];
+
+    // Update search cities display with resolved region data
+    if(searchData._regionData) {
+      var rd=searchData._regionData;
+      updateSearchCities(rd.region, rd.top_staedte, rd.hidden_champion);
+    }
+
     var parsed=extractData(searchData._jsonText);
     var branchen=parsed?(parsed.branchen||[]):[];
     var leads=parsed?(parsed.leads||[]):[];
@@ -365,6 +403,14 @@ function rolePrio(rolle){
   if(r.includes('mieter')||r.includes('nutzer')) return 2;
   if(r.includes('auftraggeber')||r.includes('entwickler')) return 3;
   return 4;
+}
+
+function updateSearchCities(region, topStaedte, hiddenChampion) {
+  if(!topStaedte) return;
+  var cities = [region].concat(topStaedte);
+  if(hiddenChampion) cities.push(hiddenChampion);
+  searchCities = cities.filter(function(c,i){ return cities.indexOf(c)===i; });
+  renderTags();
 }
 
 function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
