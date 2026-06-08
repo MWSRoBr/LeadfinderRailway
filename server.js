@@ -146,11 +146,11 @@ app.get('/api/test', async (req, res) => {
 // ── REGION RESOLVER ─────────────────────────────────────────────
 async function getRegionAndCities(apiKey, plzPrefixes, orte) {
   const text = await claudeHaiku(apiKey, '',
-    `Du bekommst PLZ-Präfixe und Städtenamen einer deutschen Region. Gib NUR ein JSON-Objekt zurück.
+    `Du bekommst PLZ-Präfixe und Städtenamen einer deutschen Region. Gib NUR ein JSON-Objekt zurück. Der Regionsbegriff muss ein einzelnes gebräuchliches Wort oder kurzer zusammengesetzter Begriff sein der als Google-Suchbegriff funktioniert (z.B. Rheinland, Ruhrgebiet, Rhein-Main, Schwaben, Franken) – KEIN "und", KEINE Kombination mehrerer Regionen.
 PLZ-Präfixe: ${plzPrefixes.join(', ')}
 Städte: ${orte.slice(0,30).join(', ')}
 
-{"region":"Regionsbegriff (z.B. Rheinland, Ruhrgebiet, Rhein-Main, Schwaben)","top_staedte":["Stadt1","Stadt2","Stadt3"],"hidden_champion":"wirtschaftlich bedeutende Stadt die nicht in top_staedte ist (z.B. Monheim, Leinfelden-Echterdingen)"}`,
+{"region":"Rheinland","top_staedte":["Köln","Bonn","Aachen"],"hidden_champion":"Leverkusen"}`,
     300
   );
   const match = text.match(/\{[\s\S]*\}/);
