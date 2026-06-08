@@ -35,11 +35,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .add-input:focus{border-color:var(--black)}
 .btn-add{padding:7px 14px;background:var(--white);color:var(--black);border:1.5px solid var(--black);border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
 .btn-add:hover{background:var(--black);color:#fff}
-.slider-wrap{margin-bottom:6px}
-.slider-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:8px}
-input[type=range]{width:100%;height:6px;-webkit-appearance:none;background:linear-gradient(to right,var(--black) 50%,var(--border) 50%);border-radius:3px;outline:none;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--black);cursor:pointer}
-.slider-val{font-size:13px;color:var(--text-mid);margin-top:8px;min-height:20px}
+
 .btn-start{width:100%;margin-top:28px;padding:18px;background:var(--black);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:background .15s}
 .btn-start:hover{background:#333}
 .btn-start:disabled{background:#bbb;cursor:not-allowed}
@@ -202,14 +198,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 
   <div class="step" id="step3">
     <div class="step-num">Schritt 3 von 3</div>
-    <div class="step-title">Wie genau soll gesucht werden?</div>
-    <div class="step-desc">Stelle ein wie streng der Filter ist – gilt nur für die Firmensuche.</div>
-    <div class="slider-wrap">
-      <div class="slider-labels"><span>Wenige, sichere Treffer</span><span>Viele, auch unsichere</span></div>
-      <input type="range" min="0" max="2" value="1" id="slider" oninput="updateSlider()" />
-      <div class="slider-val" id="sliderVal">Ausgewogen – mittlere Signale reichen</div>
-    </div>
-    <button class="btn-start" id="btnStart" onclick="startSearch()">Potentielle Leads suchen</button>
+    <div class="step-title">Bereit zur Suche</div>
+    <div class="step-desc">Das Tool sucht jetzt nach geplanten Bauprojekten und wachsenden Unternehmen in deiner Region.</div>
+    <button class="btn-start" id="btnStart" onclick="startSearch('ausgewogen')">Potentielle Leads suchen</button>
     <div class="status-msg" id="searchStatus"></div>
   </div>
 
@@ -238,16 +229,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;heigh
 <script>
 var orte=[], plzPrefixes=[], pInterval=null;
 window._leads=[], window._projects=[];
-var sliderLabels=['Streng – nur starke Signale, klare inhabergeführte Unternehmen','Ausgewogen – mittlere Signale reichen','Breit – auch schwächere Signale, mehr Treffer'];
-var sliderKeys=['streng','ausgewogen','breit'];
-
-function updateSlider(){
-  var v=parseInt(document.getElementById('slider').value);
-  document.getElementById('sliderVal').textContent=sliderLabels[v];
-  var pct=(v/2*100)+'%';
-  document.getElementById('slider').style.background='linear-gradient(to right,var(--black) 0%,var(--black) '+pct+',var(--border) '+pct+',var(--border) 100%)';
-}
-updateSlider();
 
 function getKey(){
   var k=localStorage.getItem('mw_lf_k4');
@@ -308,10 +289,10 @@ function stopProg(ok){
   setTimeout(function(){document.getElementById('progressBox').classList.remove('active');},600);
 }
 
-async function startSearch(){
+async function startSearch(strictness){
+  strictness = strictness || 'ausgewogen';
   if(!orte.length){alert('Bitte zuerst einen PLZ-Bereich eingeben.');return;}
   var apiKey=getKey(); if(!apiKey) return;
-  var strictness=sliderKeys[parseInt(document.getElementById('slider').value)];
   var btn=document.getElementById('btnStart'), st=document.getElementById('searchStatus');
   document.getElementById('results').innerHTML='';
   btn.disabled=true; st.className='status-msg'; st.textContent='';
@@ -345,7 +326,20 @@ async function startSearch(){
     if(projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
     if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+' Firma'+(leads.length===1?'':'en')+' ('+h+' Hoch)');}
     if(msgs.length){st.className='status-msg ok';st.textContent=msgs.join(' · ');}
-    else{st.className='status-msg err';st.textContent='Keine Ergebnisse. PLZ-Bereich erweitern oder Slider nach rechts stellen.';}
+    else{
+      st.className='status-msg err';
+      if(strictness==='breit'){
+        st.textContent='Auch mit erweitertem Filter keine Ergebnisse. Bitte PLZ-Bereich anpassen.';
+      } else {
+        st.textContent='Keine Ergebnisse mit aktuellem Filter.';
+        document.getElementById('results').innerHTML=
+          '<div style="background:#fffbe6;border:1.5px solid #e8c840;border-left:4px solid #c8a800;border-radius:8px;padding:20px 24px;margin-top:16px">'
+          +'<p style="font-size:14px;font-weight:600;color:#5a4a00;margin-bottom:8px">Keine passenden Ergebnisse gefunden.</p>'
+          +'<p style="font-size:13px;color:#7a6a00;margin-bottom:16px;line-height:1.6">Mit einem erweiterten Filter werden möglicherweise weitere Treffer gefunden. <strong>Hinweis:</strong> Diese Ergebnisse können ungenauer oder unsicherer sein. Bitte alle Quellen sorgfältig prüfen.</p>'
+          +'<button onclick="retryBroadSearch()" style="padding:10px 22px;background:#111;color:#fff;border:none;border-radius:6px;font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Nochmal suchen &#8211; mit erweitertem Filter</button>'
+          +'</div>';
+      }
+    }
   }catch(e){stopProg(false);st.className='status-msg err';st.textContent='Verbindungsfehler: '+e.message;}
   btn.disabled=false;
 }
@@ -421,13 +415,14 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
     html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
+      if(strictness==='breit') l._unsicher=true;
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
       var sigs=l.signale||[];
       if(!sigs.length&&l.trigger) sigs=[{text:l.trigger,url:l.triggerQuelle}];
       var sigHtml=sigs.map(function(s){var url=s.url&&s.url.indexOf('http')===0?s.url:null;return '<div class="signal-item">'+esc(s.text||s.beschreibung||'')+(url?'<div class="signal-src">Quelle: <a href="'+esc(url)+'" target="_blank" rel="noopener">'+esc(url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>':'')+'</div>';}).join('');
       var ap=l.ansprechpartner||{};
       html+='<div class="lead-card '+prio+'">'
-        +'<div class="lead-head"><div><div class="lead-name">'+esc(l.name)+'</div><div class="lead-branche">'+esc(l.branche)+'</div></div><div class="lead-right"><div class="lead-ort">'+esc(l.ort)+(l.plz?' &nbsp;'+esc(l.plz):'')+'</div><span class="lead-badge '+prio+'">'+esc(l.prioritaet||'Mittel')+'</span></div></div>'
+        +'<div class="lead-head"><div><div class="lead-name">'+esc(l.name)+'</div><div class="lead-branche">'+esc(l.branche)+'</div></div><div class="lead-right"><div class="lead-ort">'+esc(l.ort)+(l.plz?' &nbsp;'+esc(l.plz):'')+'</div><span class="lead-badge '+prio+'">'+esc(l.prioritaet||'Mittel')+'</span>'+(l._unsicher?'<br><span style="font-size:9px;color:#b22222;font-weight:700">&#9888; Unsicherer Treffer</span>':'')+'</div></div>'
         +'<div class="slbl">Was wurde gefunden</div><div class="signal-list">'+sigHtml+'</div>'
         +(l.warumJetzt?'<div class="slbl">Warum jetzt</div><div class="warum-box">'+esc(l.warumJetzt)+'</div>':'')
         +'<div class="slbl">Ansprechpartner</div><div class="contact-row"><div><div class="clbl">Name</div><div class="cval">'+esc(ap.name||'nicht öffentlich')+'</div></div><div><div class="clbl">Funktion</div><div class="cval">'+esc(ap.funktion||'–')+'</div></div></div>'
@@ -552,6 +547,8 @@ function printModal(){
   w.document.write('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>'+t+'</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Calibri,sans-serif;font-size:11px;padding:24px 32px;max-width:900px;margin:0 auto}.sc-sec{margin-bottom:18px}.sc-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:10px}.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sc-card{background:#f5f5f5;border-radius:4px;padding:10px 12px}.sc-card-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#2d6a3e;margin-bottom:3px}.sc-card p{font-size:10px;color:#444;line-height:1.4}.sc-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid currentColor;margin-top:4px}.reife-dots{display:flex;gap:3px;margin-top:5px}.reife-dot{width:18px;height:4px;border-radius:2px;background:#ddd}.reife-dot.on{background:#111}.presse-item{border-left:2px solid #ddd;padding:6px 10px;margin-bottom:6px}.baustein{background:#fffef5;border:1px solid #e8d890;border-radius:4px;padding:10px 14px;margin-bottom:8px}.baustein-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#b89a00;margin-bottom:4px}.baustein p{font-size:11px;color:#555;font-style:italic;line-height:1.5}.quellen-list a{font-size:10px;color:#2d6a3e;display:block;margin-bottom:2px}.m-disclaimer{background:#fffbe6;border-left:4px solid #c8a800;padding:10px 14px;font-size:10px;color:#5a4a00;margin-bottom:16px}.btn-copy{display:none}.proj-popup-contact{border-left:3px solid #CED994;padding:8px 12px;margin-bottom:8px}.proj-popup-role{font-size:9px;font-weight:700;text-transform:uppercase;color:#3d6b1a;margin-bottom:4px}.proj-popup-contact p{font-size:11px;color:#444;line-height:1.5}h1{font-size:18px;font-weight:400;font-family:Georgia,serif;font-style:italic;margin-bottom:4px}.meta{font-size:9px;color:#888;margin-bottom:18px}</style></head><body><h1>'+t+'</h1><div class="meta">MYWORKSPACE &middot; '+new Date().toLocaleDateString('de-DE')+'</div>'+b+'</body></html>');
   w.document.close(); w.print();
 }
+
+function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){if(!s)return'';return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
