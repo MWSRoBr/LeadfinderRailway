@@ -185,8 +185,16 @@ app.post('/api/projects', async (req, res) => {
   const allOrte = orte.join(', ');
 
   try {
+    console.log('Starting project search for', orte.slice(0,3));
     // Resolve region and key cities
-    const regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
+    let regionData;
+    try {
+      regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
+    } catch(e) {
+      console.log('Region resolver error:', e.message);
+      regionData = { region: orte[0]||'Köln', top_staedte: orte.slice(1,4), hidden_champion: orte[4]||'' };
+    }
+    console.log('Region resolved:', JSON.stringify(regionData));
     const { region, top_staedte, hidden_champion } = regionData;
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
@@ -251,10 +259,10 @@ app.post('/api/search', async (req, res) => {
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
-      `${reg} GmbH Expansion Büro Wachstum ${py} ${cy}`,
-      `${topS[0]} Unternehmen neuer Standort inhabergeführt ${cy}`,
-      `${topS[1]||topS[0]} Firma Wachstum Mitarbeiter ${py} ${cy}`,
-      `${hc} GmbH expandiert Büro ${py} ${cy}`
+      `${topS[0]} Unternehmen expandiert neues Büro ${cy}`,
+      `${topS[0]} GmbH Pressemitteilung Expansion Standort ${py} ${cy}`,
+      `${topS[1]||topS[0]} inhabergeführt Wachstum neuer Standort ${cy}`,
+      `${hc||topS[2]||topS[0]} GmbH expandiert Büro Mitarbeiter ${cy}`
     ].filter(q => q.trim());
 
     console.log('Project queries:', queries);
