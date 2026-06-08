@@ -178,7 +178,7 @@ app.post('/api/plz', async (req, res) => {
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
 app.post('/api/projects', async (req, res) => {
-  const { apiKey, orte } = req.body;
+  const { apiKey, orte, plzPrefixes } = req.body;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
@@ -213,9 +213,10 @@ app.post('/api/projects', async (req, res) => {
 
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
 
+    console.log('Raw project text preview:', rawText.substring(0,500));
     const jsonText = await claudeSonnet(apiKey,
-      `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. AUSSCHLIESSEN: Projekte mit Fertigstellung vor ${dates.plus6}. Wenn keine passenden Projekte: leeres Array [].`,
-      `Analysiere diese Suchergebnisse und extrahiere alle Büro-Bauprojekte (Neubau oder Umbau). Kriterien: ab 500m² Bürofläche, Fertigstellung nach ${dates.plus6}. Sei großzügig bei der Erkennung – auch Projekte bei denen nicht alle Daten bekannt sind aufnehmen.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"...","bueroflaeche":"...","arbeitsplaetze":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"...","kontakte":[{"rolle":"Innenarchitekt oder Auftraggeber oder Architekt oder Mieter","firma":"...","ansprechpartner":"...","adresse":"...","telefon":"...","email":"...","url":"..."}],"quelleUrl":"https://..."}]`,
+      `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. Sei SEHR großzügig – nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
+      `Extrahiere ALLE Büro-Bauprojekte aus diesen Texten. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
       2000
     );
 
