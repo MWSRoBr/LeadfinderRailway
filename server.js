@@ -182,9 +182,11 @@ app.post('/api/projects', async (req, res) => {
       2000
     );
 
+    console.log('Project JSON preview:', jsonText.substring(0, 300));
     const match = jsonText.match(/\[[\s\S]*\]/);
     let projects = [];
-    if (match) { try { projects = JSON.parse(match[0]); } catch(e) {} }
+    if (match) { try { projects = JSON.parse(match[0]); } catch(e) { console.log('JSON parse error:', e.message); } }
+    console.log('Projects found:', projects.length);
     return res.json({ projects, _range: dates.range10 });
 
   } catch (err) {
