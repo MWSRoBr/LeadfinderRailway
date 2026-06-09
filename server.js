@@ -86,26 +86,32 @@ function getDateRange() {
   };
 }
 
-// ── FIRECRAWL SEARCH ────────────────────────────────────────────
-async function firecrawlSearch(query, limit = 5) {
-  const resp = await fetch('https://api.firecrawl.dev/v1/search', {
-    method: 'POST',
+// ── BRAVE SEARCH ─────────────────────────────────────────────────
+const BRAVE_KEY = process.env.Brave_Search_API;
+
+async function braveSearch(query, limit = 5) {
+  const url = new URL('https://api.search.brave.com/res/v1/web/search');
+  url.searchParams.set('q', query);
+  url.searchParams.set('count', Math.min(limit, 10));
+  url.searchParams.set('country', 'de');
+  url.searchParams.set('search_lang', 'de');
+  url.searchParams.set('freshness', 'py'); // past year
+  const resp = await fetch(url.toString(), {
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${FIRECRAWL_KEY}`
-    },
-    body: JSON.stringify({
-      query,
-      limit,
-      lang: 'de',
-      country: 'de',
-      scrapeOptions: { formats: ['markdown'] }
-    })
+      'Accept': 'application/json',
+      'Accept-Encoding': 'gzip',
+      'X-Subscription-Token': BRAVE_KEY
+    }
   });
+  if (!resp.ok) throw new Error(`Brave API error: ${resp.status}`);
   const data = await resp.json();
-  if (!data.success) throw new Error(data.error || 'Firecrawl error');
-  return (data.data || []).map(r => `[${r.title||''}](${r.url||''})\n${r.markdown||r.description||''}`).join('\n\n---\n\n').substring(0, 14000);
+  const results = data.web?.results || [];
+  return results.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n---\n\n').substring(0, 14000);
 }
+
+// Alias für Rückwärtskompatibilität
+const firecrawlSearch = braveSearch;
+
 
 async function claudeSonnet(apiKey, system, userMsg, maxTokens = 2000) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -133,10 +139,10 @@ async function claudeHaiku(apiKey, system, userMsg, maxTokens = 1500) {
 
 // ── TEST ENDPOINT ───────────────────────────────────────────────
 app.get('/api/test', async (req, res) => {
-  const key = FIRECRAWL_KEY;
-  if (!key) return res.json({ status: 'ERROR', message: 'FIRECRAWL_KEY not set' });
+  const key = BRAVE_KEY;
+  if (!key) return res.json({ status: 'ERROR', message: 'Brave_Search_API not set' });
   try {
-    const result = await firecrawlSearch('Köln GmbH Büro 2026', 2);
+    const result = await braveSearch('Köln GmbH Büro 2026', 2);
     return res.json({ status: 'OK', keySet: true, resultLength: result.length, preview: result.substring(0,300) });
   } catch(err) {
     return res.json({ status: 'ERROR', message: err.message, keySet: !!key });
@@ -303,7 +309,7 @@ app.post('/api/search', async (req, res) => {
     }
 
     if (!rawText || rawText.length < 30) {
-      return res.json({ error: { message: 'no_results' }, _debug: { rawLen: rawText.length, preview: rawText.substring(0,200), firecrawlKey: FIRECRAWL_KEY ? 'set' : 'MISSING' } });
+      return res.json({ error: { message: 'no_results' }, _debug: { rawLen: rawText.length, preview: rawText.substring(0,200), braveKey: BRAVE_KEY ? 'set' : 'MISSING' } });
     }
 
     const signaleHoch = 'Neubau, Umbau, Erweiterungsbau, Baugenehmigung, Finanzierungsrunde, Kapitalerhöhung, KfW-Förderung';
