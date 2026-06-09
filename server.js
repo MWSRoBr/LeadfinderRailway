@@ -202,25 +202,28 @@ app.post('/api/projects', async (req, res) => {
     }
     console.log('Region resolved:', JSON.stringify(regionData));
     const { region, top_staedte, hidden_champion } = regionData;
+    const allOrteListe = orte.length > 4 ? orte : top_staedte;
+    // Verteile Queries über alle verfügbaren Orte (rotierend)
+    const o = (i) => allOrteListe[i % allOrteListe.length] || top_staedte[0];
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = strictness === 'breit' ? [
-      `${region} Bürogebäude Neubau Umbau ${y1} ${y2} ${y3}`,
-      `${top_staedte[0]} Gewerbepark Coworking Bürofläche Eröffnung ${y1} ${y2}`,
-      `${top_staedte[0]} Gewerbebau Halle Büro Neubau ${y2} ${y3}`,
-      `${top_staedte[1]||top_staedte[0]} Büro Umbau Revitalisierung ${y1} ${y2}`,
-      `${hidden_champion} Büroprojekt Gewerbe Neubau ${y1} ${y2}`,
-      `${region} Businesspark Bürostandort Fertigstellung ${y2} ${y3}`,
-      `${top_staedte[0]} Verwaltungsgebäude Neubau Sanierung ${y2} ${y3}`,
-      `${region} Arbeitsplätze Bürofläche Investition Standort ${y2}`
+      `${o(0)} Bürogebäude Neubau Umbau ${y1} ${y2}`,
+      `${o(1)} Gewerbepark Coworking Bürofläche Eröffnung ${y1} ${y2}`,
+      `${o(2)} Gewerbebau Büro Neubau Fertigstellung ${y2} ${y3}`,
+      `${o(3)} Büro Umbau Revitalisierung Sanierung ${y1} ${y2}`,
+      `${o(4)} Büroprojekt Gewerbe Neubau Investor ${y1} ${y2}`,
+      `${o(5)} Businesspark Bürostandort Fertigstellung ${y2} ${y3}`,
+      `${o(6)} Verwaltungsgebäude Neubau Sanierung ${y2} ${y3}`,
+      `${o(7)} Bürofläche Investition Arbeitsplätze Standort ${y2}`
     ] : [
-      `${region} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
-      `${top_staedte[0]} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
-      `${top_staedte[0]} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
-      `${top_staedte[1]||top_staedte[0]} Bürokomplex Neubau Projektentwicklung Baustart ${y2}`,
-      `${hidden_champion} Büro Neubau Projektentwicklung Investor ${y1} ${y2}`,
-      `${region} Gewerbegebiet Bürofläche Projektentwickler Fertigstellung ${y2} ${y3}`,
-      `${top_staedte[0]} Architekt Bürogebäude Bauantrag Genehmigung ${y2} ${y3}`
+      `${o(0)} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
+      `${o(1)} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
+      `${o(2)} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
+      `${o(3)} Bürokomplex Neubau Projektentwicklung Baustart ${y2}`,
+      `${o(4)} Büro Neubau Projektentwicklung Investor ${y1} ${y2}`,
+      `${o(5)} Gewerbegebiet Bürofläche Projektentwickler Fertigstellung ${y2} ${y3}`,
+      `${o(6)} Architekt Bürogebäude Bauantrag Genehmigung ${y2} ${y3}`
     ];
 
     console.log('Project queries:', queries);
@@ -231,7 +234,7 @@ app.post('/api/projects', async (req, res) => {
     // Fallback: breitere Suche wenn Ergebnis mager
     if (!rawText || rawText.length < 500) {
       console.log('Project fallback query triggered');
-      const fallback = await firecrawlSearch(`${region} Bürogebäude Bauprojekt ${y1} ${y2} ${y3}`, 6).catch(() => '');
+      const fallback = await firecrawlSearch(`${o(0)} OR ${o(1)} OR ${o(2)} Bürogebäude Bauprojekt ${y1} ${y2} ${y3}`, 6).catch(() => '');
       rawText = fallback.substring(0, 14000);
       console.log('Project fallback rawText length:', rawText.length);
     }
@@ -284,15 +287,17 @@ app.post('/api/search', async (req, res) => {
     // Resolve region and key cities
     const regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
     const { region: reg, top_staedte: topS, hidden_champion: hc } = regionData;
+    const allOrteListe = orte.length > 4 ? orte : topS;
+    const o = (i) => allOrteListe[i % allOrteListe.length] || topS[0];
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
-      `${topS[0]} GmbH Umzug neues Büro Einweihung ${cy}`,
-      `${topS[0]} Mittelstand GmbH Expansion neuer Standort ${py} ${cy}`,
-      `${topS[1]||topS[0]} inhabergeführt Bürofläche Wachstum Stellenaufbau ${cy}`,
-      `${hc||topS[2]||topS[0]} GmbH Pressemitteilung Standort Neubezug ${cy}`,
-      `${reg} Familienunternehmen Büro Erweiterung Investition ${cy}`,
-      `${topS[0]} Softwareunternehmen Beratungsunternehmen neues Büro Standort ${cy}`
+      `${o(0)} GmbH Umzug neues Büro Einweihung ${cy}`,
+      `${o(1)} Mittelstand GmbH Expansion neuer Standort ${py} ${cy}`,
+      `${o(2)} inhabergeführt Bürofläche Wachstum Stellenaufbau ${cy}`,
+      `${o(3)} GmbH Pressemitteilung Standort Neubezug ${cy}`,
+      `${o(4)} Familienunternehmen Büro Erweiterung Investition ${cy}`,
+      `${o(5)} Softwareunternehmen Beratungsunternehmen neues Büro Standort ${cy}`
     ].filter(q => q.trim());
 
     console.log('Company queries:', queries);
@@ -303,7 +308,7 @@ app.post('/api/search', async (req, res) => {
     // Fallback: allgemeinere Signalsuche
     if (!rawText || rawText.length < 500) {
       console.log('Company fallback query triggered');
-      const fallback = await firecrawlSearch(`${reg} Unternehmen Büro Umzug Expansion ${cy}`, 6).catch(() => '');
+      const fallback = await firecrawlSearch(`${o(0)} OR ${o(1)} OR ${o(2)} Unternehmen Büro Umzug Expansion ${cy}`, 6).catch(() => '');
       rawText = fallback.substring(0, 14000);
       console.log('Company fallback rawText length:', rawText.length);
     }
