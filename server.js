@@ -178,7 +178,7 @@ app.post('/api/plz', async (req, res) => {
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
 app.post('/api/projects', async (req, res) => {
-  const { apiKey, orte, plzPrefixes } = req.body;
+  const { apiKey, orte, plzPrefixes, strictness } = req.body;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
@@ -198,7 +198,16 @@ app.post('/api/projects', async (req, res) => {
     const { region, top_staedte, hidden_champion } = regionData;
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
-    const queries = [
+    const queries = strictness === 'breit' ? [
+      `${region} Bürogebäude Neubau Umbau ${y1} ${y2} ${y3}`,
+      `${top_staedte[0]} Gewerbepark Coworking Bürofläche Eröffnung ${y1} ${y2}`,
+      `${top_staedte[0]} Gewerbebau Halle Büro Neubau ${y2} ${y3}`,
+      `${top_staedte[1]||top_staedte[0]} Büro Umbau Revitalisierung ${y1} ${y2}`,
+      `${hidden_champion} Büroprojekt Gewerbe Neubau ${y1} ${y2}`,
+      `${region} Businesspark Bürostandort Fertigstellung ${y2} ${y3}`,
+      `${top_staedte[0]} Verwaltungsgebäude Neubau Sanierung ${y2} ${y3}`,
+      `${region} Arbeitsplätze Bürofläche Investition Standort ${y2}`
+    ] : [
       `${region} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
       `${top_staedte[0]} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
       `${top_staedte[0]} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
@@ -206,7 +215,7 @@ app.post('/api/projects', async (req, res) => {
       `${hidden_champion} Büro Neubau Projektentwicklung Investor ${y1} ${y2}`,
       `${region} Gewerbegebiet Bürofläche Projektentwickler Fertigstellung ${y2} ${y3}`,
       `${top_staedte[0]} Architekt Bürogebäude Bauantrag Genehmigung ${y2} ${y3}`
-    ].filter(q => q.trim());
+    ];
 
     console.log('Project queries:', queries);
     let results = await Promise.all(queries.map(q => firecrawlSearch(q, 5).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
@@ -225,7 +234,9 @@ app.post('/api/projects', async (req, res) => {
 
     console.log('Raw project text preview:', rawText.substring(0,500));
     const jsonText = await claudeSonnet(apiKey,
-      `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. Sei SEHR großzügig – nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
+      strictness === 'breit'
+        ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen – Gewerbebauten, Businessparks, Verwaltungsgebäude, Coworking, gemischte Nutzung. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe.`
+        : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. Sei SEHR großzügig – nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
       `Extrahiere ALLE Büro-Bauprojekte aus diesen Texten. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
       2000
     );
@@ -271,11 +282,11 @@ app.post('/api/search', async (req, res) => {
     const py = cy-1;
     const queries = [
       `${topS[0]} GmbH Umzug neues Büro Einweihung ${cy}`,
-      `${topS[0]} inhabergeführt Expansion Standorteröffnung ${py} ${cy}`,
-      `${topS[1]||topS[0]} Mittelstand Bürofläche Wachstum Neueinstellungen ${cy}`,
-      `${hc||topS[2]||topS[0]} GmbH neuer Standort Pressemitteilung ${cy}`,
-      `${reg} Unternehmen Baugenehmigung Bürogebäude Eigennutzer ${cy}`,
-      `${topS[0]} Architekturbüro Planungsbüro Ingenieurbüro Expansion ${cy}`
+      `${topS[0]} Mittelstand GmbH Expansion neuer Standort ${py} ${cy}`,
+      `${topS[1]||topS[0]} inhabergeführt Bürofläche Wachstum Stellenaufbau ${cy}`,
+      `${hc||topS[2]||topS[0]} GmbH Pressemitteilung Standort Neubezug ${cy}`,
+      `${reg} Familienunternehmen Büro Erweiterung Investition ${cy}`,
+      `${topS[0]} Softwareunternehmen Beratungsunternehmen neues Büro Standort ${cy}`
     ].filter(q => q.trim());
 
     console.log('Company queries:', queries);
@@ -301,8 +312,8 @@ app.post('/api/search', async (req, res) => {
     const jsonText = await claudeSonnet(apiKey,
       `Gib NUR ein JSON-Objekt zurück. Beginne mit {
 ${strictRule}
-NICHT: DAX-Konzerne, VW, Continental, Siemens, BMW, BASF, Bayer, Allianz, Bürovermietungen, Kammern, Portale.
-Nur inhabergeführte Unternehmen ab 50 MA, Rechtsform egal.
+NICHT: DAX-Konzerne, VW, Continental, Siemens, BMW, BASF, Bayer, Allianz, Bürovermietungen, Kammern, Portale, Messen, Messegesellschaften, Kultureinrichtungen, Theater, Opern, Konzerthäuser, Museen, öffentliche Institutionen, Stadtbetriebe, Bundesbehörden, Hochschulen, Verbände.
+NUR: privatwirtschaftliche, inhabergeführte Unternehmen ab 50 MA. Keine börsennotierten Konzerne.
 Priorität HOCH: starkes Signal (${signaleHoch})
 Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
