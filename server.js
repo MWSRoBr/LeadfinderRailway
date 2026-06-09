@@ -247,13 +247,25 @@ app.post('/api/projects', async (req, res) => {
         ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen – Gewerbebauten, Businessparks, Verwaltungsgebäude, Coworking, gemischte Nutzung. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe.`
         : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig. Sei SEHR großzügig – nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
       `Extrahiere ALLE Büro-Bauprojekte aus diesen Texten. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
-      2000
+      4000
     );
 
     console.log('Project JSON preview:', jsonText.substring(0, 300));
     const match = jsonText.match(/\[[\s\S]*\]/);
     let projects = [];
-    if (match) { try { projects = JSON.parse(match[0]); } catch(e) { console.log('JSON parse error:', e.message); } }
+    if (match) {
+      try {
+        projects = JSON.parse(match[0]);
+      } catch(e) {
+        console.log('JSON parse error:', e.message, '— attempting partial rescue');
+        // Rette alle vollständig geparsten Objekte vor dem Abbruch
+        try {
+          const partial = match[0].replace(/,\s*\{[^{}]*$/, ']').replace(/,\s*$/, ']');
+          projects = JSON.parse(partial);
+          console.log('Partial rescue successful:', projects.length, 'projects');
+        } catch(e2) { console.log('Partial rescue failed:', e2.message); }
+      }
+    }
     console.log('Projects found:', projects.length);
     return res.json({ projects, _range: dates.range10 });
 
