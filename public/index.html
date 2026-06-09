@@ -163,6 +163,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .proj-popup-contact p{font-size:12px;color:var(--text-mid);line-height:1.7}
 .proj-popup-contact a{color:var(--text);text-decoration:none}
 .proj-popup-contact a:hover{text-decoration:underline}
+@media print{
+  body>*:not(#results-section){display:none!important}
+  #results-section{display:block!important}
+  .btn-pdf,.btn-profil,.btn-mpdf,.step-nav,.steps-header,.tool-header,.no-print{display:none!important}
+  .lead-card,.proj-card{break-inside:avoid;page-break-inside:avoid}
+  body{background:#fff;padding:0;margin:0}
+}
 </style>
 </head>
 <body>
@@ -178,7 +185,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
     <div style="font-size:15px;color:var(--text-mid);line-height:1.8">
       Gib deinen PLZ-Bereich ein. Das Tool ermittelt daraus automatisch die Region sowie die wirtschaftlich wichtigsten Städte – darunter die 3 größten und die wirtschaftlich stärkste Stadt, die nicht zu den Top 3 gehört.<br>
       Gesucht wird gleichzeitig nach <strong style="color:var(--text)">geplanten Büro-Bauprojekten</strong> (Neubau oder Umbau, ab 500m², Fertigstellung mind. 6 Monate in der Zukunft) und <strong style="color:var(--text)">wachsenden inhabergeführten Unternehmen</strong> (ab 50 Mitarbeiter, Expansionssignale aus den letzten 12 Monaten).<br>
-      <span style="color:var(--text-muted);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
+      <span style="color:var(--black);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
     </div>
   </div>
   <div class="step active" id="step1">
@@ -218,7 +225,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
     <div class="p-track"><div class="p-fill" id="pFill"></div></div>
   </div>
 
-  <div id="results"></div>
+  <div id="results-section"></div>
 </div>
 
 <!-- Modal -->
@@ -337,7 +344,7 @@ async function startSearch(strictness){
   if(!orte.length){alert('Bitte zuerst einen PLZ-Bereich eingeben.');return;}
   var apiKey=getKey(); if(!apiKey) return;
   var btn=document.getElementById('btnStart'), st=document.getElementById('searchStatus');
-  document.getElementById('results').innerHTML='';
+  document.getElementById('results-section').innerHTML='';
   btn.disabled=true; st.className='status-msg'; st.textContent='';
   startProg();
 
@@ -345,19 +352,23 @@ async function startSearch(strictness){
     // Send all orte (for region resolver) + extraCities
     var searchOrte = orte.concat(extraCities.filter(function(c){return !orte.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
-      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes})}),
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})}),
       fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})})
     ]);
     var [projData,searchData]=await Promise.all([projResp.json(),searchResp.json()]);
 
     stopProg(true);
 
+    // Hard-Fehler nur bei Overload — no_results zeigt Retry-Button, bricht aber nicht ab
+    var companyNoResults = false;
     if(searchData.error){
       var msg=(searchData.error.message||searchData.error);
-      if(msg==='overloaded') msg='Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
-      if(msg==='no_results') msg='Keine Ergebnisse. PLZ-Bereich erweitern oder Slider nach rechts stellen.';
-      st.className='status-msg err'; st.textContent=msg;
-      btn.disabled=false; return;
+      if(msg==='overloaded'){
+        st.className='status-msg err'; st.textContent='Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten und erneut versuchen.';
+        btn.disabled=false; return;
+      }
+      if(msg==='no_results') companyNoResults = true;
+      searchData._jsonText = null;
     }
 
     var projects=projData.projects||[];
@@ -377,20 +388,22 @@ async function startSearch(strictness){
     var msgs=[];
     if(projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
     if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+(leads.length===1?' Firma':' Firmen')+' ('+h+' Hoch)');}
-    if(msgs.length){st.className='status-msg ok';st.textContent=msgs.join(' · ');}
-    else{
-      st.className='status-msg err';
-      if(currentStrictness==='breit'){
-        st.textContent='Auch mit erweitertem Filter keine Ergebnisse. Bitte PLZ-Bereich anpassen.';
-      } else {
-        st.textContent='Keine Ergebnisse mit aktuellem Filter.';
-        document.getElementById('results').innerHTML=
-          '<div style="background:#fffbe6;border:1.5px solid #e8c840;border-left:4px solid #c8a800;border-radius:8px;padding:20px 24px;margin-top:16px">'
-          +'<p style="font-size:14px;font-weight:600;color:#5a4a00;margin-bottom:8px">Keine passenden Ergebnisse gefunden.</p>'
-          +'<p style="font-size:13px;color:#7a6a00;margin-bottom:16px;line-height:1.6">Mit einem erweiterten Filter werden möglicherweise weitere Treffer gefunden. <strong>Hinweis:</strong> Diese Ergebnisse können ungenauer oder unsicherer sein. Bitte alle Quellen sorgfältig prüfen.</p>'
-          +'<button onclick="retryBroadSearch()" style="padding:10px 22px;background:#111;color:#fff;border:none;border-radius:6px;font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Nochmal suchen &#8211; mit erweitertem Filter</button>'
-          +'</div>';
-      }
+    var nothingFound = !projects.length && !leads.length;
+    if(msgs.length){ st.className='status-msg ok'; st.textContent=msgs.join(' · '); }
+    else { st.className='status-msg err'; st.textContent='Keine Ergebnisse mit aktuellem Filter.'; }
+
+    if((nothingFound || companyNoResults || !projects.length) && currentStrictness!=='breit'){
+      var retryDiv=document.createElement('div');
+      retryDiv.style.cssText='background:#fffbe6;border:1.5px solid #e8c840;border-left:4px solid #c8a800;border-radius:8px;padding:20px 24px;margin-top:16px';
+      retryDiv.innerHTML='<p style="font-size:14px;font-weight:600;color:#5a4a00;margin-bottom:8px">'+(nothingFound?'Keine Ergebnisse gefunden.':'Nicht alle Bereiche haben Treffer geliefert.')+'</p>'
+        +'<p style="font-size:13px;color:#7a6a00;margin-bottom:16px;line-height:1.6">Mit einem erweiterten Filter werden möglicherweise weitere Treffer gefunden. <strong>Hinweis:</strong> Diese Ergebnisse können ungenauer sein. Bitte alle Quellen sorgfältig prüfen.</p>'
+        +'<button onclick="retryBroadSearch()" style="padding:10px 22px;background:#111;color:#fff;border:none;border-radius:6px;font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer">Nochmal suchen – mit erweitertem Filter</button>';
+      document.getElementById('results-section').appendChild(retryDiv);
+    } else if((nothingFound || companyNoResults) && currentStrictness==='breit'){
+      var noDiv=document.createElement('div');
+      noDiv.style.cssText='background:#fffbe6;border-left:4px solid #c8a800;border-radius:8px;padding:16px 20px;margin-top:16px;font-size:13px;color:#7a6a00';
+      noDiv.textContent='Auch mit erweitertem Filter keine Ergebnisse. PLZ-Bereich anpassen.';
+      document.getElementById('results-section').appendChild(noDiv);
     }
   }catch(e){stopProg(false);st.className='status-msg err';st.textContent='Verbindungsfehler: '+e.message;}
   btn.disabled=false;
@@ -421,7 +434,7 @@ function updateSearchCities(region, topStaedte, hiddenChampion) {
 }
 
 function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
-  var el=document.getElementById('results'), html='';
+  var el=document.getElementById('results-section'), html='';
   html+='<div class="disclaimer">&#9888;&nbsp;<strong>KI-generierte Ergebnisse – zur eigenen Einschätzung.</strong> Diese Liste kann Fehler oder veraltete Angaben enthalten. Bitte alle Quellen selbst prüfen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.</div>';
 
   // Branchen
