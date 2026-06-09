@@ -183,7 +183,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   <div style="margin-bottom:40px">
     <div style="font-family:'EB Garamond',serif;font-size:28px;font-weight:400;margin-bottom:10px">Wie funktioniert das Tool?</div>
     <div style="font-size:15px;color:var(--text-mid);line-height:1.8">
-      Gib deinen PLZ-Bereich ein. Das Tool ermittelt daraus automatisch die Region sowie die wirtschaftlich wichtigsten Städte – darunter die 3 größten und die wirtschaftlich stärkste Stadt, die nicht zu den Top 3 gehört.<br>
+      Gib deinen PLZ-Bereich ein. Das Tool ermittelt daraus automatisch alle zugehörigen Orte und sucht in jedem davon.<br>
       Gesucht wird gleichzeitig nach <strong style="color:var(--text)">geplanten Büro-Bauprojekten</strong> (Neubau oder Umbau, ab 500m², Fertigstellung mind. 6 Monate in der Zukunft) und <strong style="color:var(--text)">wachsenden inhabergeführten Unternehmen</strong> (ab 50 Mitarbeiter, Expansionssignale aus den letzten 12 Monaten).<br>
       <span style="color:var(--black);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
     </div>
@@ -203,7 +203,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   <div class="step" id="step2">
     <div class="step-num">Schritt 2 von 3</div>
     <div class="step-title">Deine Suchregion</div>
-    <div class="step-desc">Das Tool sucht in diesen Städten. Du kannst bis zu 2 weitere Städte hinzufügen.</div>
+    <div class="step-desc">Alle Orte im PLZ-Bereich. Einzelne Orte können entfernt werden, weitere können hinzugefügt werden.</div>
     <div class="tags-wrap" id="tagsWrap"></div>
     <div class="add-row" id="addRow">
       <input type="text" class="add-input" id="addInput" placeholder="Stadt hinzufügen..." />
@@ -267,15 +267,8 @@ async function resolvePlz(){
     if(data.error){st.className='status-msg err';st.textContent=typeof data.error==='string'?data.error:(data.error.message||'Fehler');btn.disabled=false;btn.textContent='Orte ermitteln';return;}
     orte=data.orte||[]; plzPrefixes=data.prefixes||[];
     extraCities=[];
-    // Use regionData from server to show correct search cities
-    if(data.regionData){
-      var rd=data.regionData;
-      var cities=[rd.region].concat(rd.top_staedte||[]);
-      if(rd.hidden_champion) cities.push(rd.hidden_champion);
-      searchCities=cities.filter(function(c,i){return c&&cities.indexOf(c)===i;});
-    } else {
-      searchCities=orte.slice(0,5);
-    }
+    // Alle Orte als searchCities — vollständige Liste
+    searchCities = orte.filter(function(c,i){ return c && orte.indexOf(c)===i; });
     renderTags();
     document.getElementById('step2').classList.add('active');
     document.getElementById('step3').classList.add('active');
@@ -284,29 +277,22 @@ async function resolvePlz(){
 }
 
 function renderTags(){
-  var allSearch = searchCities.concat(extraCities);
-  var html = searchCities.map(function(o){
-    return '<div class="tag">'+esc(o)+'</div>';
+  var html = searchCities.map(function(o,i){
+    return '<div class="tag">'+esc(o)+'<span class="tag-x" onclick="removeCity('+i+')">&times;</span></div>';
   }).join('');
   html += extraCities.map(function(o,i){
     return '<div class="tag" style="background:#555">'+esc(o)+'<span class="tag-x" onclick="removeExtra('+i+')">&times;</span></div>';
   }).join('');
   document.getElementById('tagsWrap').innerHTML=html;
+  document.getElementById('addRow').style.display='flex';
   var hint = document.getElementById('addHint');
-  var addRow = document.getElementById('addRow');
-  if(extraCities.length>=2){
-    addRow.style.display='none';
-    if(hint) hint.textContent='Maximale Anzahl zusätzlicher Städte erreicht (2).';
-  } else {
-    addRow.style.display='flex';
-    if(hint) hint.textContent='';
-  }
+  if(hint) hint.textContent='';
 }
+function removeCity(i){searchCities.splice(i,1);renderTags();}
 function removeExtra(i){extraCities.splice(i,1);renderTags();}
 function addOrt(){
   var v=document.getElementById('addInput').value.trim();
   if(!v) return;
-  if(extraCities.length>=2){return;}
   if(!searchCities.includes(v)&&!extraCities.includes(v)){extraCities.push(v);}
   document.getElementById('addInput').value='';
   renderTags();
@@ -350,7 +336,7 @@ async function startSearch(strictness){
 
   try{
     // Send all orte (for region resolver) + extraCities
-    var searchOrte = orte.concat(extraCities.filter(function(c){return !orte.includes(c);}));
+    var searchOrte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
       fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})}),
       fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})})
