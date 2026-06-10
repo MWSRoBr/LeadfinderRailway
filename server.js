@@ -216,9 +216,16 @@ app.post('/api/projects', async (req, res) => {
     }
     console.log('Region resolved:', JSON.stringify(regionData));
     const { region, top_staedte, hidden_champion } = regionData;
-    const allOrteListe = orte.length > 4 ? orte : top_staedte;
-    // Verteile Queries über alle verfügbaren Orte (rotierend)
-    const o = (i) => allOrteListe[i % allOrteListe.length] || top_staedte[0];
+    // 2 große + 2 wirtschaftsstarke + 3 zufällig aus dem Rest
+    const grosse = top_staedte.slice(0, 2);
+    const wirtschaftsstarke = [hidden_champion, top_staedte[2]].filter(Boolean);
+    const restOrte = orte.filter(o => !grosse.includes(o) && !wirtschaftsstarke.includes(o));
+    // Fisher-Yates shuffle für zufällige Auswahl
+    const shuffled = restOrte.slice().sort(() => Math.random() - 0.5);
+    const zufaellige = shuffled.slice(0, 3);
+    const queryOrte = [...grosse, ...wirtschaftsstarke, ...zufaellige];
+    console.log('Query-Orte:', queryOrte);
+    const o = (i) => queryOrte[i % queryOrte.length] || top_staedte[0];
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = strictness === 'breit' ? [
@@ -340,8 +347,14 @@ app.post('/api/search', async (req, res) => {
     // Resolve region and key cities
     const regionData = await getRegionAndCities(apiKey, plzPrefixes||[], orte);
     const { region: reg, top_staedte: topS, hidden_champion: hc } = regionData;
-    const allOrteListe = orte.length > 4 ? orte : topS;
-    const o = (i) => allOrteListe[i % allOrteListe.length] || topS[0];
+    // 2 große + 2 wirtschaftsstarke + 3 zufällig aus dem Rest
+    const grosseC = topS.slice(0, 2);
+    const wirtschaftsstarkeC = [hc, topS[2]].filter(Boolean);
+    const restOrteC = orte.filter(o => !grosseC.includes(o) && !wirtschaftsstarkeC.includes(o));
+    const shuffledC = restOrteC.slice().sort(() => Math.random() - 0.5);
+    const zufaelligeC = shuffledC.slice(0, 3);
+    const queryOrteC = [...grosseC, ...wirtschaftsstarkeC, ...zufaelligeC];
+    const o = (i) => queryOrteC[i % queryOrteC.length] || topS[0];
     const cy = new Date().getFullYear();
     const py = cy-1;
     const queries = [
