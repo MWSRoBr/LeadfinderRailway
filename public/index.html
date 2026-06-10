@@ -433,6 +433,12 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
   // Projects block
   if(projects&&projects.length){
     window._projects=projects;
+    // Sortierung nach Fertigstellung
+    function parseYear(s){
+      if(!s||s==='unbekannt'||s==='–') return 9999;
+      var m=s.match(/(\d{4})/); return m?parseInt(m[1]):9999;
+    }
+    projects = projects.slice().sort(function(a,b){ return parseYear(a.fertigstellung)-parseYear(b.fertigstellung); });
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Geplante Bauprojekte in deiner Region</div><div class="block-meta">'+projects.length+' Projekt'+(projects.length===1?'':'e')+(projRange?' &nbsp;&middot;&nbsp; '+esc(projRange):'')+'</div></div>';
     projects.forEach(function(p,idx){
       var kontakte=(p.kontakte||[]).slice().sort(function(a,b){return rolePrio(a.rolle)-rolePrio(b.rolle);});
@@ -472,7 +478,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     var sorted=hoch.concat(leads.filter(function(l){return(l.prioritaet||'').toLowerCase()!=='hoch';}));
     window._leads=sorted;
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen in deiner Region</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
-    html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="window.print()">&#8595; Als PDF speichern</button></div>';
+    html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="printResults()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
       if(currentStrictness==='breit') l._unsicher=true;
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
@@ -607,6 +613,21 @@ function printModal(){
   w.document.close(); w.print();
 }
 
+function printResults(){
+  var content = document.getElementById('results-section');
+  if(!content) return;
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>MYWORKSPACE Lead-Finder</title>'
+    +'<style>body{font-family:DM Sans,sans-serif;font-size:13px;color:#111;padding:24px;max-width:900px;margin:0 auto}'
+    +'.btn-pdf,.btn-profil,.btn-mpdf,.no-print{display:none!important}'
+    +'.lead-card,.proj-card{page-break-inside:avoid;border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:16px}'
+    +'</style></head><body>');
+  w.document.write(content.innerHTML);
+  w.document.write('</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){ w.print(); }, 500);
+}
 function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
