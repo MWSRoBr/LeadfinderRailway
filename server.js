@@ -112,6 +112,20 @@ async function braveSearch(query, limit = 5) {
 // Alias für Rückwärtskompatibilität
 const firecrawlSearch = braveSearch;
 
+// ── FIRECRAWL SCRAPE (gezieltes URL-Scraping) ─────────────────
+async function firecrawlScrape(url) {
+  if (!FIRECRAWL_KEY) return '';
+  try {
+    const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${FIRECRAWL_KEY}` },
+      body: JSON.stringify({ url, formats: ['markdown'] })
+    });
+    const data = await resp.json();
+    return (data.data?.markdown || '').substring(0, 3000);
+  } catch(e) { return ''; }
+}
+
 
 async function claudeSonnet(apiKey, system, userMsg, maxTokens = 2000) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -217,13 +231,13 @@ app.post('/api/projects', async (req, res) => {
       `${o(6)} Verwaltungsgebäude Neubau Sanierung ${y2} ${y3}`,
       `${o(7)} Bürofläche Investition Arbeitsplätze Standort ${y2}`
     ] : [
-      `${o(0)} Bürogebäude Projektentwickler Baugenehmigung Fertigstellung ${y2} ${y3}`,
+      `${o(0)} Bürogebäude Projektentwickler Baugenehmigung ${y2} ${y3}`,
       `${o(1)} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
       `${o(2)} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
       `${o(3)} Bürokomplex Neubau Projektentwicklung Baustart ${y2}`,
-      `${o(4)} Büro Neubau Projektentwicklung Investor ${y1} ${y2}`,
-      `${o(5)} Gewerbegebiet Bürofläche Projektentwickler Fertigstellung ${y2} ${y3}`,
-      `${o(6)} Architekt Bürogebäude Bauantrag Genehmigung ${y2} ${y3}`
+      `${o(4)} Büro Neubau Projektentwicklung Fertigstellung ${y1} ${y2}`,
+      `${o(5)} Gewerbegebiet Bürofläche Projektentwickler ${y2} ${y3}`,
+      `${o(6)} Bürogebäude Bauantrag Genehmigung Architekt ${y2} ${y3}`
     ];
 
     console.log('Project queries:', queries);
@@ -280,6 +294,20 @@ app.post('/api/projects', async (req, res) => {
       }
     }
     console.log('Projects found:', projects.length);
+
+    // Deduplizierung: gleiche Quelle oder sehr ähnlicher Name → nur einmal
+    const seen = new Set();
+    projects = projects.filter(p => {
+      const key = (p.quelleUrl||'') + '|' + (p.projektname||'').toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,20);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      // Auch sehr ähnliche Namen deduplizieren (Levenshtein-ähnlich: erste 15 Zeichen)
+      const nameKey = (p.projektname||'').toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+      if (nameKey.length > 5 && seen.has('name:'+nameKey)) return false;
+      seen.add('name:'+nameKey);
+      return true;
+    });
+    console.log('Projects after dedup:', projects.length);
     return res.json({ projects, _range: dates.range10 });
 
   } catch (err) {
@@ -398,6 +426,44 @@ app.post('/api/company', async (req, res) => {
     let parsed = null;
     if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
     return res.json({ _data: parsed, _vorlagen: vorlagen });
+
+  } catch (err) {
+    const msg = err.message === 'overloaded' ? 'overloaded' : err.message;
+    return res.json({ error: { message: msg } });
+  }
+});
+
+// ── PROJECT RESEARCH ─────────────────────────────────────────────
+app.post('/api/project-research', async (req, res) => {
+  const { apiKey, projektname, standort, quelleUrl } = req.body;
+  if (!apiKey || !projektname) return res.status(400).json({ error: 'Missing params' });
+
+  try {
+    // 1. Brave: weitere URLs zum Projekt finden
+    const searchResults = await Promise.all([
+      braveSearch(`"${projektname}" ${standort||''} Architekt Bauherr Projektentwickler`, 5).catch(() => ''),
+      braveSearch(`"${projektname}" ${standort||''} Baugenehmigung Ausschreibung Fertigstellung`, 5).catch(() => ''),
+      braveSearch(`"${projektname}" ${standort||''} Investition Budget Kosten`, 4).catch(() => '')
+    ]);
+
+    // 2. Firecrawl: Quellartikel vollständig scrapen wenn vorhanden
+    let scrapedContent = '';
+    if (quelleUrl && quelleUrl.startsWith('http')) {
+      scrapedContent = await firecrawlScrape(quelleUrl);
+    }
+
+    const rawText = [scrapedContent, ...searchResults].join('\n\n===\n\n').substring(0, 28000);
+
+    const jsonText = await claudeSonnet(apiKey,
+      'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. Extrahiere alle verfügbaren Informationen zu diesem Bauprojekt aus den Suchergebnissen. Fehlende Felder mit "unbekannt" füllen.',
+      `Projekt: ${projektname}, Standort: ${standort||'unbekannt'}\n\nSuchergebnisse:\n${rawText}\n\n{"projektname":"...","standort":"...","plz":"...","projekttyp":"...","beschreibung":"...","bueroflaeche":"...","gesamtflaeche":"...","investitionsvolumen":"...","fertigstellung":"...","baustart":"...","baugenehmigung":"...","ausschreibungsstatus":"...","moebelbedarfEinschaetzung":"hoch/mittel","ansprechpartner":[{"rolle":"Architekt/Bauherr/Projektentwickler/GU/Vermarktung","firma":"...","name":"...","telefon":"...","email":"...","adresse":"...","url":"..."}],"projektnews":[{"datum":"...","titel":"...","zusammenfassung":"...","url":"..."}],"quellen":[{"label":"...","url":"..."}]}`,
+      4000
+    );
+
+    const match = jsonText.match(/\{[\s\S]*\}/);
+    let parsed = null;
+    if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
+    return res.json({ _data: parsed });
 
   } catch (err) {
     const msg = err.message === 'overloaded' ? 'overloaded' : err.message;
