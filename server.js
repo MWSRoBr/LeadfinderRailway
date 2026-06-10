@@ -247,8 +247,8 @@ app.post('/api/projects', async (req, res) => {
     try {
       jsonText = await claudeSonnet(apiKey,
         strictness === 'breit'
-          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen – Gewerbebauten, Businessparks, Verwaltungsgebäude, Coworking, gemischte Nutzung. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe.`
-          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). Nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
+          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe. Maximal 10 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst.`
+          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). Nur Projekte mit Bürobezug. Nur ausschließen: Wohngebäude, Infrastruktur. Maximal 10 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst, dann "mittel".`,
         `Extrahiere NUR Büro-Bauprojekte aus diesen Texten die sich in folgenden Orten befinden: ${orte.slice(0,15).join(', ')}. Projekte aus anderen Städten (Berlin, Frankfurt, München, Hamburg usw.) NICHT aufnehmen. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen wenn Ort passt. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
         6000
       );
@@ -350,6 +350,7 @@ app.post('/api/search', async (req, res) => {
 ${strictRule}
 NICHT: DAX-Konzerne, VW, Continental, Siemens, BMW, BASF, Bayer, Allianz, Bürovermietungen, Kammern, Portale, Messen, Messegesellschaften, Kultureinrichtungen, Theater, Opern, Konzerthäuser, Museen, öffentliche Institutionen, Stadtbetriebe, Bundesbehörden, Hochschulen, Verbände.
 NUR: privatwirtschaftliche, inhabergeführte Unternehmen ab 50 MA. Keine börsennotierten Konzerne.
+Maximal 10 Unternehmen. Priorität HOCH zuerst, dann MITTEL.
 Priorität HOCH: starkes Signal (${signaleHoch})
 Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
