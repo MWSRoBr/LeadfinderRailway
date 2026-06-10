@@ -183,10 +183,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   <div style="margin-bottom:40px">
     <div style="font-family:'EB Garamond',serif;font-size:28px;font-weight:400;margin-bottom:10px">Wie funktioniert das Tool?</div>
     <div style="font-size:15px;color:var(--text-mid);line-height:1.8">
-      Gib eine Postleitzahl oder einen PLZ-Bereich ein. Das Tool sucht dann in allen zugehörigen Orten gleichzeitig nach zwei Dingen:<br>
-      <strong style="color:var(--text)">Geplante Bürobauprojekte</strong> – Neubauten oder Umbauten, die in den nächsten Monaten oder Jahren fertig werden und Möbelbedarf haben werden.<br>
-      <strong style="color:var(--text)">Wachsende Unternehmen</strong> – inhabergeführte Firmen, die gerade expandieren, umziehen oder neue Standorte eröffnen.<br>
-      Du bekommst jeweils bis zu 10 Ergebnisse – sortiert nach Relevanz. Projekte und Firmen mit hohem Möbelbedarf stehen oben.<br>
+      Gib eine Postleitzahl oder einen PLZ-Bereich ein. Das Tool wählt automatisch 7 relevante Städte aus deinem Gebiet aus – 2 große Zentren, 2 wirtschaftsstarke Städte und 3 zufällig gezogene Orte für eine breite Abdeckung.<br>
+      Gesucht wird dann gleichzeitig nach <strong style="color:var(--text)">geplanten Bürobauprojekten</strong> und <strong style="color:var(--text)">wachsenden Unternehmen</strong> in diesen Städten. Du bekommst jeweils bis zu 6 Ergebnisse – sortiert nach Relevanz, Projekte und Firmen mit hohem Möbelbedarf zuerst.<br>
+      Städte können vor der Suche entfernt und durch eigene Eingaben ersetzt werden.<br>
       <span style="color:var(--black);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
     </div>
   </div>
@@ -205,13 +204,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   <div class="step" id="step2">
     <div class="step-num">Schritt 2 von 3</div>
     <div class="step-title">Deine Suchregion</div>
-    <div class="step-desc">Alle Orte im PLZ-Bereich. Einzelne Orte können entfernt werden, weitere können hinzugefügt werden.</div>
+    <div class="step-desc">Das Tool hat 7 Städte für diese Suche ausgewählt: 2 große, 2 wirtschaftsstarke und 3 zufällige aus deinem PLZ-Bereich. Städte können entfernt und ersetzt werden.</div>
     <div class="tags-wrap" id="tagsWrap"></div>
     <div class="add-row" id="addRow">
-      <input type="text" class="add-input" id="addInput" placeholder="Stadt hinzufügen..." />
+      <input type="text" class="add-input" id="addInput" placeholder="Ersatzstadt eingeben..." />
       <button class="btn-add" onclick="addOrt()">+ Hinzufügen</button>
     </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:6px" id="addHint"></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px" id="addHint">Für jede entfernte Stadt kann eine neue eingegeben werden.</div>
   </div>
 
   <div class="step" id="step3">
@@ -269,8 +268,8 @@ async function resolvePlz(){
     if(data.error){st.className='status-msg err';st.textContent=typeof data.error==='string'?data.error:(data.error.message||'Fehler');btn.disabled=false;btn.textContent='Orte ermitteln';return;}
     orte=data.orte||[]; plzPrefixes=data.prefixes||[];
     extraCities=[];
-    // Alle Orte als searchCities — vollständige Liste
-    searchCities = orte.filter(function(c,i){ return c && orte.indexOf(c)===i; });
+    // Zeige die 7 ausgewählten Städte als Chips
+    searchCities = (data.selectedOrte||orte).filter(function(c,i,a){ return c && a.indexOf(c)===i; });
     renderTags();
     document.getElementById('step2').classList.add('active');
     document.getElementById('step3').classList.add('active');
