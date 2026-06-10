@@ -242,13 +242,20 @@ app.post('/api/projects', async (req, res) => {
     if (!rawText || rawText.length < 50) return res.json({ projects: [], _range: dates.range10 });
 
     console.log('Raw project text preview:', rawText.substring(0,500));
-    const jsonText = await claudeSonnet(apiKey,
-      strictness === 'breit'
-        ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen – Gewerbebauten, Businessparks, Verwaltungsgebäude, Coworking, gemischte Nutzung. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe.`
-        : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). Nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
-      `Extrahiere ALLE Büro-Bauprojekte aus diesen Texten. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
-      6000
-    );
+    console.log('Calling Sonnet with apiKey:', apiKey ? 'set ('+apiKey.substring(0,8)+'...)' : 'MISSING');
+    let jsonText = '';
+    try {
+      jsonText = await claudeSonnet(apiKey,
+        strictness === 'breit'
+          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen – Gewerbebauten, Businessparks, Verwaltungsgebäude, Coworking, gemischte Nutzung. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe.`
+          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). Nimm jedes Bauprojekt auf das irgendwie mit Büros zu tun hat, auch wenn Daten fehlen. Nur ausschließen: Wohngebäude, Infrastruktur (Straßen, Bahnhöfe), bereits fertiggestellte Gebäude.`,
+        `Extrahiere ALLE Büro-Bauprojekte aus diesen Texten. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
+        6000
+      );
+    } catch(sonnetErr) {
+      console.log('Sonnet call failed:', sonnetErr.message);
+      return res.json({ projects: [], _range: dates.range10 });
+    }
 
     console.log('Project JSON preview:', jsonText.substring(0, 300));
     const match = jsonText.match(/\[[\s\S]*/);
