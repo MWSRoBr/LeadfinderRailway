@@ -530,7 +530,11 @@ function openProjProfil(idx){
     +'</div></div>'
     +(p.beschreibung?'<div class="sc-sec"><div class="sc-lbl">Beschreibung</div><p style="font-size:13px;color:var(--text-mid);line-height:1.7">'+esc(p.beschreibung)+'</p></div>':'')
     +'<div class="sc-sec"><div class="sc-lbl">Ansprechpartner (Priorität: Innenarchitekt → Mieter → Auftraggeber)</div><div class="proj-popup-contacts">'+kontakteHtml+'</div></div>'
-    +(p.quelleUrl&&p.quelleUrl.indexOf('http')===0?'<div class="sc-sec"><div class="sc-lbl">Quelle</div><div class="quellen-list"><a href="'+esc(p.quelleUrl)+'" target="_blank">'+esc(p.quelleUrl)+'</a></div></div>':'');
+    +(p.quelleUrl&&p.quelleUrl.indexOf('http')===0?'<div class="sc-sec"><div class="sc-lbl">Quelle</div><div class="quellen-list"><a href="'+esc(p.quelleUrl)+'" target="_blank">'+esc(p.quelleUrl)+'</a></div></div>':'')
+    +'<div style="margin-top:20px;padding-top:16px;border-top:1.5px solid var(--border)">'
+    +'<button class="btn-primary" style="width:100%;padding:14px" onclick="researchProject('+idx+')">&#128269;&nbsp; Vollständige Web-Recherche zu diesem Projekt</button>'
+    +'<div id="proj-research-'+idx+'"></div>'
+    +'</div>';
 
   document.getElementById('modalOverlay').classList.add('active');
 }
@@ -627,6 +631,61 @@ function printResults(){
   w.focus();
   setTimeout(function(){ w.print(); }, 500);
 }
+async function researchProject(idx){
+  var p=window._projects[idx]; if(!p) return;
+  var apiKey=getKey(); if(!apiKey) return;
+  var container=document.getElementById('proj-research-'+idx);
+  if(!container) return;
+  container.innerHTML='<div class="m-load"><div class="m-spin"></div>Recherche läuft – bitte 20–30 Sekunden warten...</div>';
+
+  try{
+    var resp=await fetch('/api/project-research',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({apiKey,projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl})});
+    var data=await resp.json();
+    if(data.error){container.innerHTML='<p style="color:var(--red);padding:12px">'+esc(data.error.message||data.error)+'</p>';return;}
+    var d=data._data; if(!d){container.innerHTML='<p style="color:var(--text-muted);padding:12px">Keine weiteren Daten gefunden.</p>';return;}
+
+    var kontakteHtml=(d.ansprechpartner||[]).map(function(k){
+      return '<div class="proj-popup-contact"><div class="proj-popup-role">'+esc(k.rolle||'Kontakt')+'</div><p>'
+        +'<strong>'+esc(k.firma||'–')+'</strong>'
+        +(k.name&&k.name!=='unbekannt'?'<br>'+esc(k.name):'')
+        +(k.adresse&&k.adresse!=='unbekannt'?'<br>'+esc(k.adresse):'')
+        +(k.telefon&&k.telefon!=='unbekannt'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
+        +(k.email&&k.email!=='unbekannt'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
+        +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank">Website</a>':'')
+        +'</p></div>';
+    }).join('');
+
+    var newsHtml=(d.projektnews||[]).map(function(n){
+      return '<div class="presse-item">'
+        +(n.datum&&n.datum!=='unbekannt'?'<div class="presse-date">'+esc(n.datum)+'</div>':'')
+        +'<div class="presse-title">'+esc(n.titel||'')+'</div>'
+        +'<div class="presse-text">'+esc(n.zusammenfassung||'')+'</div>'
+        +(n.url&&n.url.indexOf('http')===0?'<div class="signal-src"><a href="'+esc(n.url)+'" target="_blank">'+esc(n.url.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>':'')
+        +'</div>';
+    }).join('');
+
+    var quellenHtml=(d.quellen||[]).map(function(q){
+      return q.url&&q.url.indexOf('http')===0?'<a href="'+esc(q.url)+'" target="_blank">'+esc(q.label||q.url)+'</a>':'';
+    }).join('');
+
+    container.innerHTML=
+      '<div style="margin-top:4px"><div class="sc-lbl" style="margin-bottom:12px">Recherche-Ergebnisse</div>'
+      +'<div class="sc-grid" style="margin-bottom:16px">'
+      +'<div class="sc-card"><div class="sc-card-lbl">Investitionsvolumen</div><p>'+esc(d.investitionsvolumen||'–')+'</p></div>'
+      +'<div class="sc-card"><div class="sc-card-lbl">Gesamtfläche</div><p>'+esc(d.gesamtflaeche||'–')+'</p></div>'
+      +'<div class="sc-card"><div class="sc-card-lbl">Baustart</div><p>'+esc(d.baustart||'–')+'</p></div>'
+      +'<div class="sc-card"><div class="sc-card-lbl">Fertigstellung</div><p>'+esc(d.fertigstellung||'–')+'</p></div>'
+      +'<div class="sc-card"><div class="sc-card-lbl">Baugenehmigung</div><p>'+esc(d.baugenehmigung||'–')+'</p></div>'
+      +'<div class="sc-card"><div class="sc-card-lbl">Ausschreibung</div><p>'+esc(d.ausschreibungsstatus||'–')+'</p></div>'
+      +'</div>'
+      +(kontakteHtml?'<div class="sc-lbl" style="margin-bottom:8px">Ansprechpartner</div><div class="proj-popup-contacts" style="margin-bottom:16px">'+kontakteHtml+'</div>':'')
+      +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
+      +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
+      +'</div>';
+  }catch(e){container.innerHTML='<p style="color:var(--red);padding:12px">Fehler: '+esc(e.message)+'</p>';}
+}
+
 function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
