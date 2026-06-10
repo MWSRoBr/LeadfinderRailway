@@ -222,22 +222,22 @@ app.post('/api/projects', async (req, res) => {
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
     const queries = strictness === 'breit' ? [
-      `${o(0)} Bürogebäude Neubau Umbau ${y1} ${y2}`,
-      `${o(1)} Gewerbepark Coworking Bürofläche Eröffnung ${y1} ${y2}`,
-      `${o(2)} Gewerbebau Büro Neubau Fertigstellung ${y2} ${y3}`,
-      `${o(3)} Büro Umbau Revitalisierung Sanierung ${y1} ${y2}`,
-      `${o(4)} Büroprojekt Gewerbe Neubau Investor ${y1} ${y2}`,
-      `${o(5)} Businesspark Bürostandort Fertigstellung ${y2} ${y3}`,
-      `${o(6)} Verwaltungsgebäude Neubau Sanierung ${y2} ${y3}`,
-      `${o(7)} Bürofläche Investition Arbeitsplätze Standort ${y2}`
+      `${o(0)} Büro Neubau ${y1} ${y2}`,
+      `${o(1)} Büro Gewerbe Neubau ${y1} ${y2}`,
+      `${o(2)} Bürofläche Neubau Fertigstellung ${y2}`,
+      `${o(3)} Büro Umbau Sanierung ${y1} ${y2}`,
+      `${o(4)} Gewerbe Büro Neubau ${y1} ${y2}`,
+      `${o(5)} Büro Standort Fertigstellung ${y2}`,
+      `${o(6)} Verwaltungsgebäude Neubau ${y2}`,
+      `${o(7)} Bürofläche Investition ${y2}`
     ] : [
-      `${o(0)} Bürogebäude Projektentwickler Baugenehmigung ${y2} ${y3}`,
-      `${o(1)} Büroprojekt Neubau Grundsteinlegung Richtfest ${y1} ${y2}`,
-      `${o(2)} Büroimmobilie Revitalisierung Umbau Sanierung ${y2} ${y3}`,
-      `${o(3)} Bürokomplex Neubau Projektentwicklung Baustart ${y2}`,
-      `${o(4)} Büro Neubau Projektentwicklung Fertigstellung ${y1} ${y2}`,
-      `${o(5)} Gewerbegebiet Bürofläche Projektentwickler ${y2} ${y3}`,
-      `${o(6)} Bürogebäude Bauantrag Genehmigung Architekt ${y2} ${y3}`
+      `${o(0)} Bürogebäude Neubau ${y2} ${y3}`,
+      `${o(1)} Büroprojekt Neubau ${y1} ${y2}`,
+      `${o(2)} Büro Umbau Sanierung ${y2}`,
+      `${o(3)} Bürokomplex Neubau ${y2}`,
+      `${o(4)} Büro Neubau Fertigstellung ${y1} ${y2}`,
+      `${o(5)} Gewerbe Bürofläche Neubau ${y2}`,
+      `${o(6)} Bürogebäude Architekt ${y2} ${y3}`
     ];
 
     console.log('Project queries:', queries);
@@ -261,8 +261,8 @@ app.post('/api/projects', async (req, res) => {
     try {
       jsonText = await claudeSonnet(apiKey,
         strictness === 'breit'
-          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe. Maximal 10 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst.`
-          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 120 Zeichen pro Feld). Nur Projekte mit Bürobezug. Nur ausschließen: Wohngebäude, Infrastruktur. Maximal 10 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst, dann "mittel".`,
+          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 80 Zeichen pro Feld, Beschreibung max 150 Zeichen). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe. Maximal 6 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst.`
+          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 80 Zeichen pro Feld, Beschreibung max 150 Zeichen). Nur Projekte mit Bürobezug. Nur ausschließen: Wohngebäude, Infrastruktur. Maximal 6 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst, dann "mittel".`,
         `Extrahiere NUR Büro-Bauprojekte aus diesen Texten die sich in folgenden Orten befinden: ${orte.slice(0,15).join(', ')}. Projekte aus anderen Städten (Berlin, Frankfurt, München, Hamburg usw.) NICHT aufnehmen. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen wenn Ort passt. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
         6000
       );
@@ -378,7 +378,7 @@ app.post('/api/search', async (req, res) => {
 ${strictRule}
 NICHT: DAX-Konzerne, VW, Continental, Siemens, BMW, BASF, Bayer, Allianz, Bürovermietungen, Kammern, Portale, Messen, Messegesellschaften, Kultureinrichtungen, Theater, Opern, Konzerthäuser, Museen, öffentliche Institutionen, Stadtbetriebe, Bundesbehörden, Hochschulen, Verbände.
 NUR: privatwirtschaftliche, inhabergeführte Unternehmen ab 50 MA. Keine börsennotierten Konzerne.
-Maximal 10 Unternehmen. Priorität HOCH zuerst, dann MITTEL.
+Maximal 6 Unternehmen. Priorität HOCH zuerst, dann MITTEL.
 Priorität HOCH: starkes Signal (${signaleHoch})
 Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
