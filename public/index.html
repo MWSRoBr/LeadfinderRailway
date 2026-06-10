@@ -360,10 +360,7 @@ async function startSearch(strictness){
     var projects=projData.projects||[];
 
     // Update search cities display with resolved region data
-    if(searchData._regionData) {
-      var rd=searchData._regionData;
-      updateSearchCities(rd.region, rd.top_staedte, rd.hidden_champion);
-    }
+    // searchCities bereits korrekt gesetzt beim PLZ-Ermitteln — nicht überschreiben
 
     var parsed=extractData(searchData._jsonText);
     var branchen=parsed?(parsed.branchen||[]):[];
