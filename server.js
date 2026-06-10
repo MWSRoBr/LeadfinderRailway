@@ -193,7 +193,14 @@ app.post('/api/plz', async (req, res) => {
     } catch(e) {}
   }
 
-  return res.json({ orte: result.orte, prefixes: result.prefixes, regionData });
+  // 2 große + 2 wirtschaftsstarke + 3 zufällig
+  const grosse = regionData.top_staedte.slice(0, 2);
+  const wirtschaftsstarke = [regionData.hidden_champion, regionData.top_staedte[2]].filter(Boolean);
+  const restOrte = result.orte.filter(o => !grosse.includes(o) && !wirtschaftsstarke.includes(o));
+  const shuffled = restOrte.slice().sort(() => Math.random() - 0.5);
+  const selectedOrte = [...new Set([...grosse, ...wirtschaftsstarke, ...shuffled.slice(0, 3)])];
+
+  return res.json({ orte: result.orte, prefixes: result.prefixes, regionData, selectedOrte });
 });
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
