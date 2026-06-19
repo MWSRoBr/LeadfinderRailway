@@ -741,6 +741,9 @@ function logout(){
   _nutzer=null; _pw=null; _apiKey=null;
   location.reload();
 }
+
+// Passwortabfrage beim Seitenaufruf
+window.addEventListener('DOMContentLoaded', function(){ checkAuth(); });
 function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
