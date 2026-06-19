@@ -3,6 +3,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
+const ANTHROPIC_KEY = process.env.API_Anthropic;
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -274,7 +275,7 @@ Städte: ${orte.slice(0,30).join(', ')}
 
 // ── PLZ RESOLVE ─────────────────────────────────────────────────
 app.post('/api/plz', async (req, res) => {
-  const { plz, apiKey } = req.body;
+  const { plz } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!plz) return res.status(400).json({ error: 'Missing plz' });
   const result = parsePlzInput(plz);
   if (!result.orte.length) return res.json({ error: 'PLZ-Bereich nicht erkannt.' });
@@ -299,7 +300,7 @@ app.post('/api/plz', async (req, res) => {
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
 app.post('/api/projects', async (req, res) => {
-  const { apiKey, orte, plzPrefixes, strictness } = req.body;
+  const { orte, plzPrefixes, strictness } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
@@ -441,7 +442,7 @@ app.post('/api/projects', async (req, res) => {
 
 // ── COMPANY SEARCH ───────────────────────────────────────────────
 app.post('/api/search', async (req, res) => {
-  const { apiKey, orte, plzPrefixes, strictness } = req.body;
+  const { orte, plzPrefixes, strictness } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
@@ -530,7 +531,7 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
 
 // ── COMPANY PROFILE ──────────────────────────────────────────────
 app.post('/api/company', async (req, res) => {
-  const { apiKey, name, ort, branche } = req.body;
+  const { name, ort, branche } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !name) return res.status(400).json({ error: 'Missing params' });
 
   const vorlagen = {
@@ -570,7 +571,7 @@ app.post('/api/company', async (req, res) => {
 
 // ── PROJECT RESEARCH ─────────────────────────────────────────────
 app.post('/api/project-research', async (req, res) => {
-  const { apiKey, projektname, standort, quelleUrl } = req.body;
+  const { projektname, standort, quelleUrl } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !projektname) return res.status(400).json({ error: 'Missing params' });
 
   try {
