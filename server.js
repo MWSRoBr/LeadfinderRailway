@@ -4,10 +4,104 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 
+// ── NUTZER & PASSWÖRTER ────────────────────────────────────────
+const USERS = {
+  'MW-rb2024': 'Ralf Ballweber',
+  'MW-jb5817': 'Jonathan Beckmann',
+  'MW-tb3392': 'Thorben Buck',
+  'MW-hf7741': 'Holger Feuchter',
+  'MW-ag4156': 'Antonios Genois',
+  'MW-ng8823': 'Nasir Gihasi',
+  'MW-jh6634': 'Jörg Horstmann',
+  'MW-dm2291': 'Daniel Müller',
+  'MW-dv5478': 'Dusan Vujancevic',
+  'MW-wg9912': 'Walter van Gassen',
+  'MW-mm3367': 'Michael Mattern',
+  'MW-rb7754': 'Robin Brendel'
+};
+
+// ── GOOGLE SHEETS LOGGING ──────────────────────────────────────
+const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const SERVICE_ACCOUNT = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) : null;
+
+async function getGoogleToken() {
+  if (!SERVICE_ACCOUNT) return null;
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({
+      iss: SERVICE_ACCOUNT.client_email,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600, iat: now
+    })).toString('base64url');
+    const { createSign } = require('crypto');
+    const sign = createSign('RSA-SHA256');
+    sign.update(`${header}.${payload}`);
+    const sig = sign.sign(SERVICE_ACCOUNT.private_key, 'base64url');
+    const jwt = `${header}.${payload}.${sig}`;
+    const resp = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+    });
+    const data = await resp.json();
+    return data.access_token || null;
+  } catch(e) { console.log('Google token error:', e.message); return null; }
+}
+
+async function logToSheets(nutzer, aktion, plz, projekte, firmen) {
+  if (!SHEET_ID || !SERVICE_ACCOUNT) return;
+  try {
+    const token = await getGoogleToken();
+    if (!token) return;
+    const now = new Date();
+    const datum = now.toLocaleDateString('de-DE');
+    const uhrzeit = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const row = [datum, uhrzeit, nutzer, plz || '–', aktion, projekte ?? '–', firmen ?? '–'];
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:G1:append?valueInputOption=USER_ENTERED`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [row] })
+    });
+  } catch(e) { console.log('Sheets log error:', e.message); }
+}
+
+// Spaltenköpfe beim Start setzen
+async function initSheet() {
+  if (!SHEET_ID || !SERVICE_ACCOUNT) return;
+  try {
+    const token = await getGoogleToken();
+    if (!token) return;
+    const check = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await check.json();
+    if (!data.values) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:G1?valueInputOption=USER_ENTERED`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [['Datum', 'Uhrzeit', 'Nutzer', 'PLZ', 'Aktion', 'Projekte', 'Firmen']] })
+      });
+    }
+  } catch(e) { console.log('Sheet init error:', e.message); }
+}
+
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── PLZ DATENBANK ──────────────────────────────────────────────
+// ── AUTH ENDPOINT ──────────────────────────────────────────────
+app.post('/api/auth', async (req, res) => {
+  const { password } = req.body;
+  const nutzer = USERS[password];
+  if (!nutzer) return res.json({ error: 'Ungültiges Passwort.' });
+  await logToSheets(nutzer, 'Login', null, null, null);
+  return res.json({ ok: true, nutzer });
+});
+
+initSheet();
+
 const PLZ_MAP = {
   '01':['Dresden','Meißen','Radebeul'],'02':['Görlitz','Bautzen','Zittau'],'03':['Cottbus','Spremberg'],
   '04':['Leipzig','Borna','Grimma'],'06':['Halle','Merseburg','Dessau'],'07':['Erfurt','Jena','Weimar','Gera'],
@@ -322,6 +416,21 @@ app.post('/api/projects', async (req, res) => {
       return true;
     });
     console.log('Projects after dedup:', projects.length);
+
+    // Filter: Projekte mit Fertigstellung in der Vergangenheit ausschließen
+    const currentYear = new Date().getFullYear();
+    projects = projects.filter(p => {
+      const fertig = p.fertigstellung || '';
+      const match = fertig.match(/(\d{4})/);
+      if (!match) return true; // unbekannt → behalten
+      return parseInt(match[1]) >= currentYear;
+    });
+    console.log('Projects after past-filter:', projects.length);
+
+    // Logging
+    const nutzer = USERS[apiKey] || 'unbekannt';
+    await logToSheets(nutzer, 'Projektsuche', (orte||[]).slice(0,3).join(', '), projects.length, null);
+
     return res.json({ projects, _range: dates.range10 });
 
   } catch (err) {
@@ -404,6 +513,12 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
       `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
       4000
     );
+
+    // Logging
+    const parsed = jsonText ? (() => { try { const m = jsonText.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null; } catch(e) { return null; } })() : null;
+    const leadCount = parsed?.leads?.length ?? null;
+    const nutzerC = USERS[apiKey] || 'unbekannt';
+    await logToSheets(nutzerC, 'Firmensuche', (orte||[]).slice(0,3).join(', '), null, leadCount);
 
     return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _regionData: regionData });
 
