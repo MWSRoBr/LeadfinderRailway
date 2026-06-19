@@ -272,26 +272,24 @@ function showLoginModal(){
       +'<div style="font-size:13px;color:#555;margin-bottom:8px">Passwort</div>'
       +'<input id="pwInput" type="password" style="width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:DM Sans,sans-serif;outline:none;margin-bottom:8px" placeholder="Dein Passwort..." />'
       +'<div id="pwError" style="font-size:12px;color:#b22222;min-height:18px;margin-bottom:12px"></div>'
-      +'<div style="font-size:13px;color:#555;margin-bottom:8px">API-Key</div>'
-      +'<input id="keyInput" type="password" style="width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:DM Sans,sans-serif;outline:none;margin-bottom:20px" placeholder="sk-ant-..." />'
+
       +'<button id="loginBtn" style="width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif">Anmelden</button>'
       +'</div>';
     document.body.appendChild(overlay);
     var btn=overlay.querySelector('#loginBtn');
     var pwInput=overlay.querySelector('#pwInput');
-    var keyInput=overlay.querySelector('#keyInput');
     var errDiv=overlay.querySelector('#pwError');
     async function tryLogin(){
-      var pw=pwInput.value.trim(), key=keyInput.value.trim();
-      if(!pw||!key){errDiv.textContent='Bitte beide Felder ausfüllen.';return;}
+      var pw=pwInput.value.trim();
+      if(!pw){errDiv.textContent='Bitte Passwort eingeben.';return;}
       btn.disabled=true;btn.textContent='Prüfe...';
       var resp=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
       var data=await resp.json();
       if(data.error){errDiv.textContent=data.error;btn.disabled=false;btn.textContent='Anmelden';return;}
-      _nutzer=data.nutzer; _pw=pw; _apiKey=key;
+      _nutzer=data.nutzer; _pw=pw; _apiKey='server';
       localStorage.setItem('mw_lf_nutzer',_nutzer);
       localStorage.setItem('mw_lf_pw',_pw);
-      localStorage.setItem('mw_lf_k4',_apiKey);
+      localStorage.setItem('mw_lf_k4','server');
       document.body.removeChild(overlay);
       resolve(true);
     }
@@ -305,11 +303,10 @@ async function resolvePlz(){
   var plz=document.getElementById('plzInput').value.trim();
   if(!plz){alert('Bitte PLZ eingeben.');return;}
   if(!await checkAuth()) return;
-  var apiKey=getKey();
   var btn=document.getElementById('btnPlz'), st=document.getElementById('step1Status');
   btn.disabled=true; btn.textContent='Städte werden ermittelt...'; st.textContent='';
   try{
-    var resp=await fetch('/api/plz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plz,apiKey})});
+    var resp=await fetch('/api/plz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plz})});
     var data=await resp.json();
     if(data.error){st.className='status-msg err';st.textContent=typeof data.error==='string'?data.error:(data.error.message||'Fehler');btn.disabled=false;btn.textContent='Orte ermitteln';return;}
     orte=data.orte||[]; plzPrefixes=data.prefixes||[];
@@ -376,7 +373,6 @@ async function startSearch(strictness){
   currentStrictness = strictness;
   if(!orte.length){alert('Bitte zuerst einen PLZ-Bereich eingeben.');return;}
   if(!await checkAuth()) return;
-  var apiKey=getKey();
   var btn=document.getElementById('btnStart'), st=document.getElementById('searchStatus');
   document.getElementById('results-section').innerHTML='';
   btn.disabled=true; st.className='status-msg'; st.textContent='';
@@ -386,8 +382,8 @@ async function startSearch(strictness){
     // Send all orte (for region resolver) + extraCities
     var searchOrte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
-      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})}),
-      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,orte:searchOrte,plzPrefixes,strictness})})
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness})}),
+      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness})})
     ]);
     var [projData,searchData]=await Promise.all([projResp.json(),searchResp.json()]);
 
@@ -589,13 +585,12 @@ function openProjProfil(idx){
 async function openFirmenProfil(idx){
   var lead=window._leads[idx]; if(!lead) return;
   if(!await checkAuth()) return;
-  var apiKey=getKey();
   document.getElementById('modalTitle').textContent=lead.name+' – Firmenprofil';
   document.getElementById('modalBody').innerHTML='<div class="m-load"><div class="m-spin"></div>Firmenprofil wird recherchiert – bitte 20–30 Sekunden warten...</div>';
   document.getElementById('modalOverlay').classList.add('active');
 
   try{
-    var resp=await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,name:lead.name,ort:lead.ort,branche:lead.branche})});
+    var resp=await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:lead.name,ort:lead.ort,branche:lead.branche})});
     var data=await resp.json();
     if(data.error){var msg=data.error.message||data.error;if(msg==='overloaded')msg='Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten.';document.getElementById('modalBody').innerHTML='<p style="color:var(--red);padding:20px">'+esc(msg)+'</p>';return;}
     renderFirmenProfil(data._data,data._vorlagen,lead);
@@ -681,14 +676,13 @@ function printResults(){
 async function researchProject(idx){
   var p=window._projects[idx]; if(!p) return;
   if(!await checkAuth()) return;
-  var apiKey=getKey();
   var container=document.getElementById('proj-research-'+idx);
   if(!container) return;
   container.innerHTML='<div class="m-load"><div class="m-spin"></div>Recherche läuft – bitte 20–30 Sekunden warten...</div>';
 
   try{
     var resp=await fetch('/api/project-research',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({apiKey,projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl})});
+      body:JSON.stringify({projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl})});
     var data=await resp.json();
     if(data.error){container.innerHTML='<p style="color:var(--red);padding:12px">'+esc(data.error.message||data.error)+'</p>';return;}
     var d=data._data; if(!d){container.innerHTML='<p style="color:var(--text-muted);padding:12px">Keine weiteren Daten gefunden.</p>';return;}
