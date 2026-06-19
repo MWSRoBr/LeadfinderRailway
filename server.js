@@ -58,8 +58,10 @@ async function logToSheets(nutzer, aktion, plz, projekte, firmen) {
     const token = await getGoogleToken();
     if (!token) return;
     const now = new Date();
-    const datum = now.toLocaleDateString('de-DE');
-    const uhrzeit = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const berlin = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    const uhrzeitStr = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(now);
+    const datum = berlin;
+    const uhrzeit = uhrzeitStr;
     const row = [datum, uhrzeit, nutzer, plz || '–', aktion, projekte ?? '–', firmen ?? '–'];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:G1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
@@ -300,8 +302,9 @@ app.post('/api/plz', async (req, res) => {
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
 app.post('/api/projects', async (req, res) => {
-  const { orte, plzPrefixes, strictness } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { orte, plzPrefixes, strictness, password } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
+  const nutzer = USERS[password] || 'unbekannt';
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
   const allOrte = orte.join(', ');
@@ -429,8 +432,7 @@ app.post('/api/projects', async (req, res) => {
     console.log('Projects after past-filter:', projects.length);
 
     // Logging
-    const nutzer = USERS[apiKey] || 'unbekannt';
-    await logToSheets(nutzer, 'Projektsuche', (orte||[]).slice(0,3).join(', '), projects.length, null);
+    await logToSheets(nutzer, 'Suchlauf', (orte||[]).slice(0,3).join(', '), projects.length, null);
 
     return res.json({ projects, _range: dates.range10 });
 
@@ -442,8 +444,9 @@ app.post('/api/projects', async (req, res) => {
 
 // ── COMPANY SEARCH ───────────────────────────────────────────────
 app.post('/api/search', async (req, res) => {
-  const { orte, plzPrefixes, strictness } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { orte, plzPrefixes, strictness, password } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
+  const nutzer = USERS[password] || 'unbekannt';
   const dates = getDateRange();
   const region = orte.slice(0,4).join(', ');
   const allOrte = orte.join(', ');
@@ -518,8 +521,7 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
     // Logging
     const parsed = jsonText ? (() => { try { const m = jsonText.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null; } catch(e) { return null; } })() : null;
     const leadCount = parsed?.leads?.length ?? null;
-    const nutzerC = USERS[apiKey] || 'unbekannt';
-    await logToSheets(nutzerC, 'Firmensuche', (orte||[]).slice(0,3).join(', '), null, leadCount);
+    await logToSheets(nutzer, 'Suchlauf', (orte||[]).slice(0,3).join(', '), null, leadCount);
 
     return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _regionData: regionData });
 
