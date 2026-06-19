@@ -382,8 +382,8 @@ async function startSearch(strictness){
     // Send all orte (for region resolver) + extraCities
     var searchOrte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
-      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness})}),
-      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness})})
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness,password:_pw})}),
+      fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness,password:_pw})})
     ]);
     var [projData,searchData]=await Promise.all([projResp.json(),searchResp.json()]);
 
@@ -487,9 +487,10 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
         var prio=ci===0?'prio1':ci===1?'prio2':'prio3';
         return '<div class="proj-contact '+prio+'"><div class="proj-contact-lbl '+prio+'">'+esc(k.rolle||'Kontakt')+'</div><p>'
           +'<strong>'+esc(k.firma||'–')+'</strong>'
-          +(k.ansprechpartner&&k.ansprechpartner!=='...'?'<br>'+esc(k.ansprechpartner):'')
-          +(k.telefon&&k.telefon!=='...'&&k.telefon!=='-'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
-          +(k.email&&k.email!=='...'&&k.email!=='-'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
+          +(k.ansprechpartner&&k.ansprechpartner!=='...'&&k.ansprechpartner!=='unbekannt'?'<br>'+esc(k.ansprechpartner):'')
+          +(k.telefon&&k.telefon!=='...'&&k.telefon!=='-'&&k.telefon!=='unbekannt'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
+          +(k.email&&k.email!=='...'&&k.email!=='-'&&k.email!=='unbekannt'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
+          +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank" rel="noopener">'+esc(k.url.replace(/^https?:\/\//,'').split('/')[0])+'</a>':'')
           +'</p></div>';
       }).join('');
       if(!contactsHtml) contactsHtml='<div class="proj-contact prio3"><p>Kontaktrecherche über Quellenlink empfohlen</p></div>';
@@ -551,11 +552,11 @@ function openProjProfil(idx){
     var prio=ci===0?'prio1':ci===1?'prio2':'prio3';
     return '<div class="proj-popup-contact '+prio+'"><div class="proj-popup-role">'+esc(k.rolle||'Kontakt')+'</div><p>'
       +'<strong>'+esc(k.firma||'–')+'</strong>'
-      +(k.ansprechpartner&&k.ansprechpartner!=='...'?'<br>'+esc(k.ansprechpartner):'')
-      +(k.adresse&&k.adresse!=='...'?'<br>'+esc(k.adresse):'')
-      +(k.telefon&&k.telefon!=='...'&&k.telefon!=='-'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
-      +(k.email&&k.email!=='...'&&k.email!=='-'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
-      +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank">Website</a>':'')
+      +(k.ansprechpartner&&k.ansprechpartner!=='...'&&k.ansprechpartner!=='unbekannt'?'<br>'+esc(k.ansprechpartner):'')
+      +(k.adresse&&k.adresse!=='...'&&k.adresse!=='unbekannt'?'<br>'+esc(k.adresse):'')
+      +(k.telefon&&k.telefon!=='...'&&k.telefon!=='-'&&k.telefon!=='unbekannt'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
+      +(k.email&&k.email!=='...'&&k.email!=='-'&&k.email!=='unbekannt'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
+      +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank">'+esc(k.url.replace(/^https?:\/\//,'').split('/')[0])+'</a>':'')
       +'</p></div>';
   }).join('');
 
