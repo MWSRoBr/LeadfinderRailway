@@ -192,22 +192,42 @@ async function braveSearch(query, limit = 5) {
   url.searchParams.set('count', Math.min(limit, 10));
   url.searchParams.set('country', 'de');
   url.searchParams.set('search_lang', 'de');
-  url.searchParams.set('freshness', 'py'); // past year
+  url.searchParams.set('freshness', 'py');
   const resp = await fetch(url.toString(), {
-    headers: {
-      'Accept': 'application/json',
-      'Accept-Encoding': 'gzip',
-      'X-Subscription-Token': BRAVE_KEY
-    }
+    headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': BRAVE_KEY }
   });
   if (!resp.ok) throw new Error(`Brave API error: ${resp.status}`);
   const data = await resp.json();
-  const results = data.web?.results || [];
-  return results.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n---\n\n').substring(0, 1800);
+  return data.web?.results || [];
 }
 
-// Alias für Rückwärtskompatibilität
-const firecrawlSearch = braveSearch;
+// Vorfilter: URL-Deduplizierung, Jahresdatum-Filter, Formatierung
+function filterAndFormatResults(resultsArrays, yearFilter = true) {
+  const seenUrls = new Set();
+  const seenDomains = new Map();
+  const yearRegex = /202[5-9]|203[0-9]/;
+  const filtered = resultsArrays.flat().filter(r => {
+    if (!r || !r.url) return false;
+    if (seenUrls.has(r.url)) return false;
+    seenUrls.add(r.url);
+    const domain = r.url.replace(/^https?:\/\//, '').split('/')[0];
+    const cnt = (seenDomains.get(domain) || 0) + 1;
+    seenDomains.set(domain, cnt);
+    if (cnt > 2) return false;
+    if (yearFilter) {
+      const text = `${r.title||''} ${r.description||''}`;
+      if (!yearRegex.test(text)) return false;
+    }
+    return true;
+  });
+  return filtered.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n---\n\n').substring(0, 28000);
+}
+
+// Alias für Rückwärtskompatibilität (profile searches etc.)
+const firecrawlSearch = async (query, limit) => {
+  const results = await braveSearch(query, limit);
+  return results.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n---\n\n').substring(0, 1800);
+};
 
 // ── FIRECRAWL SCRAPE (gezieltes URL-Scraping) ─────────────────
 async function firecrawlScrape(url) {
@@ -353,9 +373,9 @@ app.post('/api/projects', async (req, res) => {
     ];
 
     console.log('Project queries:', queries);
-    let results = await Promise.all(queries.map(q => firecrawlSearch(q, 5).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
-    let rawText = results.join('\n\n===\n\n').substring(0, 28000);
-    console.log('Project rawText length:', rawText.length);
+    let resultsArrays = await Promise.all(queries.map(q => braveSearch(q, 5).catch(err => { console.log('Brave error:', err.message); return []; })));
+    let rawText = filterAndFormatResults(resultsArrays, true);
+    console.log('Project rawText length after filter:', rawText.length);
 
     // Fallback: breitere Suche wenn Ergebnis mager
     if (!rawText || rawText.length < 500) {
@@ -369,18 +389,30 @@ app.post('/api/projects', async (req, res) => {
 
     console.log('Raw project text preview:', rawText.substring(0,500));
     console.log('Calling Sonnet with apiKey:', apiKey ? 'set ('+apiKey.substring(0,8)+'...)' : 'MISSING');
+    // Call 1: Extrahieren (nur Kernfelder)
     let jsonText = '';
     try {
       jsonText = await claudeSonnet(apiKey,
-        strictness === 'breit'
-          ? `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 80 Zeichen pro Feld, Beschreibung max 150 Zeichen). SEHR großzügig: jedes Bau- oder Umbauprojekt mit möglichem Büroanteil aufnehmen. Nur ausschließen: reine Wohngebäude, Straßen, Bahnhöfe. Maximal 6 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst.`
-          : `Gib NUR ein JSON-Array zurück. Beginne mit [ Alle Strings einzeilig und kurz (max 80 Zeichen pro Feld, Beschreibung max 150 Zeichen). Nur Projekte mit Bürobezug. Nur ausschließen: Wohngebäude, Infrastruktur. Maximal 6 Projekte. Sortierung: moebelbedarfEinschaetzung "hoch" zuerst, dann "mittel".`,
-        `Extrahiere NUR Büro-Bauprojekte aus diesen Texten die sich in folgenden Orten befinden: ${orte.slice(0,15).join(', ')}. Projekte aus anderen Städten (Berlin, Frankfurt, München, Hamburg usw.) NICHT aufnehmen. Auch wenn nur Projektname und Stadt bekannt sind – aufnehmen wenn Ort passt. Auch Umbauten, Revitalisierungen, Sanierungen von Bürogebäuden.\n\n${rawText}\n\n[{"projektname":"...","beschreibung":"...","standort":"...","plz":"unbekannt wenn nicht gefunden","bueroflaeche":"unbekannt wenn nicht gefunden","arbeitsplaetze":"unbekannt","fertigstellung":"unbekannt wenn nicht gefunden","projekttyp":"Neubau oder Umbau","moebelbedarfEinschaetzung":"hoch oder mittel","ausschreibungsstatus":"unbekannt","kontakte":[{"rolle":"Auftraggeber oder Architekt","firma":"...","ansprechpartner":"unbekannt","adresse":"unbekannt","telefon":"unbekannt","email":"unbekannt","url":"..."}],"quelleUrl":"https://..."}]`,
-        6000
+        `Gib NUR ein JSON-Array zurück. Beginne mit [ Strings max 100 Zeichen. NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg. ${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'} Max 8 Projekte.`,
+        `${rawText}\n\n[{"projektname":"...","standort":"...","plz":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","quelleUrl":"https://..."}]`,
+        3000
       );
     } catch(sonnetErr) {
-      console.log('Sonnet call failed:', sonnetErr.message);
+      console.log('Sonnet extract failed:', sonnetErr.message);
       return res.json({ projects: [], _range: dates.range10 });
+    }
+
+    // Call 2: Bewerten (Möbelbedarf + Beschreibung hinzufügen)
+    let jsonText2 = '';
+    try {
+      jsonText2 = await claudeSonnet(apiKey,
+        `Du bekommst Bauprojekte als JSON. Ergänze für jedes Projekt: "beschreibung" (max 150 Zeichen), "moebelbedarfEinschaetzung" (hoch/mittel), "bueroflaeche", "kontakte" ([{"rolle":"...","firma":"...","url":"..."}]). Sortiere nach moebelbedarfEinschaetzung hoch zuerst. Max 6 Projekte. Gib NUR JSON-Array zurück.`,
+        `${jsonText}\n\nSuchergebnisse für Kontext:\n${rawText.substring(0, 8000)}`,
+        4000
+      );
+      if (jsonText2 && jsonText2.includes('[')) jsonText = jsonText2;
+    } catch(e) {
+      console.log('Sonnet evaluate failed, using extract only:', e.message);
     }
 
     console.log('Project JSON preview:', jsonText.substring(0, 300));
@@ -432,8 +464,6 @@ app.post('/api/projects', async (req, res) => {
     console.log('Projects after past-filter:', projects.length);
 
     // Logging
-    await logToSheets(nutzer, 'Suchlauf', (orte||[]).slice(0,3).join(', '), projects.length, null);
-
     return res.json({ projects, _range: dates.range10 });
 
   } catch (err) {
@@ -487,9 +517,9 @@ app.post('/api/search', async (req, res) => {
     ].filter(q => q.trim());
 
     console.log('Company queries:', queries);
-    let results = await Promise.all(queries.map(q => firecrawlSearch(q, 4).catch(err => { console.log('Firecrawl error:', err.message); return ''; })));
-    let rawText = results.join('\n\n===\n\n').substring(0, 28000);
-    console.log('Company rawText length:', rawText.length);
+    let resultsArrays = await Promise.all(queries.map(q => braveSearch(q, 4).catch(err => { console.log('Brave error:', err.message); return []; })));
+    let rawText = filterAndFormatResults(resultsArrays, false);
+    console.log('Company rawText length after filter:', rawText.length);
 
     // Fallback: allgemeinere Signalsuche
     if (!rawText || rawText.length < 500) {
@@ -521,8 +551,6 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
     // Logging
     const parsed = jsonText ? (() => { try { const m = jsonText.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null; } catch(e) { return null; } })() : null;
     const leadCount = parsed?.leads?.length ?? null;
-    await logToSheets(nutzer, 'Suchlauf', (orte||[]).slice(0,3).join(', '), null, leadCount);
-
     return res.json({ _jsonText: jsonText, _dateRange: dates.range12, _orte: region, _regionData: regionData });
 
   } catch (err) {
@@ -607,6 +635,14 @@ app.post('/api/project-research', async (req, res) => {
     const msg = err.message === 'overloaded' ? 'overloaded' : err.message;
     return res.json({ error: { message: msg } });
   }
+});
+
+// ── COMBINED LOG ENDPOINT ─────────────────────────────────────
+app.post('/api/log', async (req, res) => {
+  const { password, plz, projekte, firmen } = req.body;
+  const nutzer = USERS[password] || 'unbekannt';
+  await logToSheets(nutzer, 'Suchlauf', plz || '–', projekte ?? '–', firmen ?? '–');
+  return res.json({ ok: true });
 });
 
 app.listen(PORT, () => console.log(`MYWORKSPACE Lead-Finder running on port ${PORT}`));
