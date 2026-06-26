@@ -418,6 +418,7 @@ async function startSearch(strictness){
     var nothingFound = !projects.length && !leads.length;
     if(msgs.length){ st.className='status-msg ok'; st.textContent=msgs.join(' · '); }
     else { st.className='status-msg err'; st.textContent='Keine Ergebnisse mit aktuellem Filter.'; }
+    logSearchResult(projects.length, leads.length);
 
     if((nothingFound || companyNoResults || !projects.length) && currentStrictness!=='breit'){
       var retryDiv=document.createElement('div');
@@ -434,6 +435,13 @@ async function startSearch(strictness){
     }
   }catch(e){stopProg(false);st.className='status-msg err';st.textContent='Verbindungsfehler: '+e.message;}
   btn.disabled=false;
+}
+
+async function logSearchResult(projekte, firmen){
+  try{
+    await fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:_pw,plz:document.getElementById('plzInput').value.trim(),projekte,firmen})});
+  }catch(e){}
 }
 
 function extractData(raw){
@@ -520,7 +528,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     var sorted=hoch.concat(leads.filter(function(l){return(l.prioritaet||'').toLowerCase()!=='hoch';}));
     window._leads=sorted;
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen in deiner Region</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
-    html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="printResults()">&#8595; Als PDF speichern</button></div>';
+    html+='<div class="leads-bar"><div></div></div>';
     sorted.forEach(function(l,idx){
       if(currentStrictness==='breit') l._unsicher=true;
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
@@ -537,6 +545,13 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
         +'</div>';
     });
     html+='</div>';
+  }
+
+  // PDF button nach allen Ergebnissen
+  if((projects&&projects.length)||(leads&&leads.length)){
+    html+='<div style="text-align:center;margin-top:32px;padding-top:24px;border-top:1.5px solid var(--border)">'
+      +'<button class="btn-pdf" onclick="printResults()" style="padding:12px 32px;font-size:13px">&#8595; Alle Ergebnisse als PDF speichern</button>'
+      +'</div>';
   }
 
   el.innerHTML=html;
