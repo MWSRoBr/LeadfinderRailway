@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Finder – Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f8f7f4;color:#111;min-height:100vh}
+.hdr{background:#333;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-sub{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#CED994}
+.hdr-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:.08em;text-transform:uppercase}
+.hdr-right{display:flex;align-items:center;gap:16px}
+.hdr-user{font-size:12px;color:#888}
+.btn-out{background:none;border:1px solid #555;color:#aaa;padding:5px 14px;border-radius:5px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.main{max-width:1100px;margin:0 auto;padding:36px 24px}
+.page-title{font-family:'EB Garamond',serif;font-size:28px;font-weight:400;margin-bottom:4px}
+.page-sub{font-size:13px;color:#888;margin-bottom:28px}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px}
+.kpi{background:#fff;border:1.5px solid #e4e0d8;border-radius:8px;padding:16px 20px}
+.kpi-val{font-size:30px;font-weight:500;line-height:1;color:#111}
+.kpi-lbl{font-size:11px;color:#888;margin-top:6px;text-transform:uppercase;letter-spacing:.06em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px}
+.card{background:#fff;border:1.5px solid #e4e0d8;border-radius:8px;padding:20px}
+.card-full{background:#fff;border:1.5px solid #e4e0d8;border-radius:8px;padding:20px;margin-bottom:20px}
+.card-title{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#888;margin-bottom:16px}
+.user-row{display:grid;grid-template-columns:150px 1fr 50px 50px 50px;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ede8;font-size:13px}
+.user-row:last-child{border-bottom:none}
+.bar-bg{background:#f0ede8;border-radius:3px;height:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:#3d6b1a}
+.num{text-align:right;color:#555;font-size:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:7px 8px;color:#888;font-weight:400;border-bottom:1px solid #e4e0d8;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.tbl td{padding:7px 8px;border-bottom:1px solid #f0ede8}
+.tbl tr:last-child td{border-bottom:none}
+.sc{display:inline-block;min-width:22px;text-align:center;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600}
+.sc-h{background:#CED994;color:#2a4a0a}
+.sc-m{background:#eee;color:#555}
+.sc-l{background:#f9e8e8;color:#a33}
+.region-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0ede8;font-size:13px}
+.region-row:last-child{border-bottom:none}
+.badge{font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;background:#f4f8e8;color:#3d6b1a}
+.status-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0ede8;font-size:13px}
+.status-row:last-child{border-bottom:none}
+.tag{font-size:11px;padding:2px 8px;border-radius:20px}
+.tag-active{background:#CED994;color:#2a4a0a}
+.tag-login{background:#e8f0fb;color:#2a4a7f}
+.tag-none{background:#f0ede8;color:#999}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+/* Login overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center}
+.login-box{background:#fff;border-radius:12px;padding:40px;max-width:380px;width:90%}
+.login-title{font-family:'EB Garamond',serif;font-size:24px;margin-bottom:4px}
+.login-sub{font-size:12px;color:#888;letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px}
+.login-lbl{font-size:13px;color:#555;margin-bottom:8px}
+.login-inp{width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;font-family:'DM Sans',sans-serif;outline:none;margin-bottom:20px}
+.login-btn{width:100%;padding:14px;background:#111;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.login-err{font-size:12px;color:#b22;min-height:18px;margin-bottom:10px}
+.spinner{text-align:center;padding:60px;color:#888;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">MYWORKSPACE</div>
+    <div class="login-sub">Project Finder · Dashboard</div>
+    <div class="login-lbl">Passwort</div>
+    <input type="password" class="login-inp" id="pwInput" placeholder="Dein Passwort...">
+    <div class="login-err" id="pwErr"></div>
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Anmelden</button>
+  </div>
+</div>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-sub">MYWORKSPACE</div>
+      <div class="hdr-title">Project Finder · Dashboard</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-user" id="hdrUser"></span>
+    <button class="btn-out" onclick="logout()">Abmelden</button>
+  </div>
+</div>
+
+<div class="main" id="mainContent">
+  <div class="spinner" id="spinner">Daten werden geladen...</div>
+</div>
+
+<script>
+var _pw = localStorage.getItem('db_pw') || null;
+var _rows = [];
+
+async function doLogin() {
+  var pw = document.getElementById('pwInput').value.trim();
+  if (!pw) return;
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginBtn').textContent = 'Prüfe...';
+  var resp = await fetch('/api/dashboard-data', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({password: pw})
+  });
+  var data = await resp.json();
+  if (data.error) {
+    document.getElementById('pwErr').textContent = data.error;
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = 'Anmelden';
+    return;
+  }
+  _pw = pw;
+  localStorage.setItem('db_pw', pw);
+  _rows = data.rows;
+  document.getElementById('loginOverlay').style.display = 'none';
+  renderDashboard();
+}
+
+function logout() {
+  localStorage.removeItem('db_pw');
+  location.reload();
+}
+
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function init() {
+  if (_pw) {
+    var resp = await fetch('/api/dashboard-data', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({password: _pw})
+    });
+    var data = await resp.json();
+    if (data.error) {
+      localStorage.removeItem('db_pw');
+      _pw = null;
+      document.getElementById('spinner').style.display = 'none';
+      return;
+    }
+    _rows = data.rows;
+    document.getElementById('loginOverlay').style.display = 'none';
+    renderDashboard();
+  } else {
+    document.getElementById('spinner').style.display = 'none';
+  }
+}
+
+function parseNum(v) {
+  if (!v || v === '–' || v === '-') return 0;
+  var n = parseInt(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function renderDashboard() {
+  // Parse rows: [Datum, Uhrzeit, Nutzer, PLZ, Aktion, Projekte, Firmen]
+  var searches = _rows.filter(r => r[4] === 'Suchlauf');
+  var logins = _rows.filter(r => r[4] === 'Login');
+
+  // KPIs
+  var totalSearches = searches.length;
+  var uniqueUsers = [...new Set(searches.map(r => r[2]))].length;
+  var totalProj = searches.reduce((s,r) => s + parseNum(r[5]), 0);
+  var totalFirm = searches.reduce((s,r) => s + parseNum(r[6]), 0);
+  var avgProj = totalSearches ? (totalProj / totalSearches).toFixed(1) : '0';
+  var avgFirm = totalSearches ? (totalFirm / totalSearches).toFixed(1) : '0';
+
+  // Per user stats
+  var userStats = {};
+  searches.forEach(r => {
+    var u = r[2];
+    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0};
+    userStats[u].searches++;
+    userStats[u].proj += parseNum(r[5]);
+    userStats[u].firm += parseNum(r[6]);
+  });
+  var loggedIn = [...new Set(logins.map(r => r[2]))];
+
+  // All known users
+  var allUsers = ['Robin Brendel','Walter van Gassen','Ralf Ballweber','Thorben Buck',
+    'Jörg Horstmann','Michael Mattern','Nasir Gihasi','Dusan Vujancevic',
+    'Daniel Müller','Jonathan Beckmann','Holger Feuchter','Antonios Genois'];
+
+  // PLZ regions
+  var plzCount = {};
+  searches.forEach(r => {
+    var plz = r[3] || '–';
+    plzCount[plz] = (plzCount[plz] || 0) + 1;
+  });
+  var plzSorted = Object.entries(plzCount).sort((a,b) => b[1]-a[1]).slice(0,6);
+
+  // Weekly trend
+  var weeklyData = {};
+  searches.forEach(r => {
+    var d = r[0]; // Datum
+    var parts = d.split('.');
+    if (parts.length >= 2) {
+      var week = `KW ${getWeek(parts[2]||'2026', parts[1], parts[0])}`;
+      weeklyData[week] = (weeklyData[week] || 0) + 1;
+    }
+  });
+
+  // Recent 10 searches
+  var recent = [...searches].reverse().slice(0, 10);
+
+  // Max for bar chart
+  var maxSearches = Math.max(...Object.values(userStats).map(u => u.searches), 1);
+
+  // User status
+  var usersWithSearch = Object.keys(userStats);
+  var usersLoginOnly = loggedIn.filter(u => !usersWithSearch.includes(u));
+  var usersNone = allUsers.filter(u => !usersWithSearch.includes(u) && !usersLoginOnly.includes(u));
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="page-title">Nutzungsübersicht</div>
+    <div class="page-sub">Alle Daten aus dem Google Sheet · ${_rows.length} Einträge</div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-val">${totalSearches}</div><div class="kpi-lbl">Suchläufe gesamt</div></div>
+      <div class="kpi"><div class="kpi-val">${uniqueUsers}</div><div class="kpi-lbl">Aktive Nutzer</div></div>
+      <div class="kpi"><div class="kpi-val">${totalProj}</div><div class="kpi-lbl">Projekte gefunden</div></div>
+      <div class="kpi"><div class="kpi-val">${totalFirm}</div><div class="kpi-lbl">Firmen gefunden</div></div>
+      <div class="kpi"><div class="kpi-val">${avgProj} / ${avgFirm}</div><div class="kpi-lbl">Ø Proj. / Firmen</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Suchläufe & Ergebnisse pro Nutzer</div>
+        <div style="display:grid;grid-template-columns:150px 1fr 44px 44px 44px;gap:8px;font-size:11px;color:#aaa;padding-bottom:6px">
+          <span></span><span></span><span style="text-align:right">Such.</span><span style="text-align:right">Proj.</span><span style="text-align:right">Firm.</span>
+        </div>
+        ${Object.entries(userStats).sort((a,b)=>b[1].searches-a[1].searches).map(([u,s]) => `
+          <div class="user-row">
+            <span style="font-weight:500">${u.split(' ')[0]} ${u.split(' ').slice(-1)[0]}</span>
+            <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(s.searches/maxSearches*100)}%"></div></div>
+            <span class="num">${s.searches}</span>
+            <span class="num">${s.proj}</span>
+            <span class="num">${s.firm}</span>
+          </div>`).join('')}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Status aller 12 Nutzer</div>
+        ${allUsers.map(u => {
+          var s = userStats[u];
+          var tag = s ? `<span class="tag tag-active">${s.searches} Suchlauf${s.searches>1?'e':''}</span>`
+                      : usersLoginOnly.includes(u) ? `<span class="tag tag-login">Eingeloggt, keine Suche</span>`
+                      : `<span class="tag tag-none">Noch nicht genutzt</span>`;
+          return `<div class="status-row"><span>${u}</span>${tag}</div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Meistgesuchte Regionen</div>
+        ${plzSorted.map(([plz,cnt], i) => {
+          var colors = ['#3d6b1a','#2a78d6','#e87ba4','#eda100','#1baf7a','#888'];
+          var bgColors = ['#f4f8e8','#e8f0fb','#fbeaf0','#faeeda','#e1f5ee','#f0ede8'];
+          var txtColors = ['#3d6b1a','#2a4a7f','#993556','#854F0B','#0F6E56','#555'];
+          return `<div class="region-row">
+            <span><span class="dot" style="background:${colors[i]}"></span>${plz}</span>
+            <span class="badge" style="background:${bgColors[i]};color:${txtColors[i]}">${cnt}×</span>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <div class="card">
+        <div class="card-title">Letzte 10 Suchläufe</div>
+        <table class="tbl">
+          <tr><th>Datum</th><th>Nutzer</th><th>PLZ</th><th>Proj.</th><th>Firm.</th></tr>
+          ${recent.map(r => {
+            var p = parseNum(r[5]), f = parseNum(r[6]);
+            var scP = p>=5?'sc-h':p>=3?'sc-m':'sc-l';
+            var scF = f>=5?'sc-h':f>=3?'sc-m':'sc-l';
+            return `<tr>
+              <td>${r[0]}</td>
+              <td>${r[2].split(' ')[0]}</td>
+              <td>${r[3]||'–'}</td>
+              <td><span class="sc ${scP}">${p||'–'}</span></td>
+              <td><span class="sc ${scF}">${f||'–'}</span></td>
+            </tr>`;
+          }).join('')}
+        </table>
+      </div>
+    </div>
+
+    <div class="card-full">
+      <div class="card-title">Suchläufe pro Woche</div>
+      <div style="position:relative;height:200px">
+        <canvas id="weekChart" role="img" aria-label="Suchläufe pro Woche"></canvas>
+      </div>
+    </div>
+  `;
+
+  // Weekly chart
+  var weeks = Object.keys(weeklyData).sort();
+  var weekVals = weeks.map(w => weeklyData[w]);
+  new Chart(document.getElementById('weekChart'), {
+    type: 'bar',
+    data: {
+      labels: weeks,
+      datasets: [{
+        label: 'Suchläufe',
+        data: weekVals,
+        backgroundColor: '#3d6b1a',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, color: '#888' }, grid: { color: '#f0ede8' } },
+        x: { ticks: { color: '#888' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function getWeek(year, month, day) {
+  var d = new Date(year, parseInt(month)-1, parseInt(day));
+  var startOfYear = new Date(d.getFullYear(), 0, 1);
+  var diff = d - startOfYear;
+  return Math.ceil((diff / 86400000 + startOfYear.getDay() + 1) / 7);
+}
+
+init();
+</script>
+</body>
+</html>
