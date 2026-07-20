@@ -645,4 +645,34 @@ app.post('/api/log', async (req, res) => {
   return res.json({ ok: true });
 });
 
+// ── DASHBOARD ─────────────────────────────────────────────────
+const DASHBOARD_USERS = ['MW-rb7754', 'MW-wg9912', 'MW-mm3367'];
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.post('/api/dashboard-data', async (req, res) => {
+  const { password } = req.body;
+  if (!DASHBOARD_USERS.includes(password)) {
+    return res.json({ error: 'Kein Zugang.' });
+  }
+  if (!SHEET_ID || !SERVICE_ACCOUNT) {
+    return res.json({ error: 'Google Sheets nicht konfiguriert.' });
+  }
+  try {
+    const token = await getGoogleToken();
+    if (!token) return res.json({ error: 'Google Auth fehlgeschlagen.' });
+    const resp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:G`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    const data = await resp.json();
+    const rows = (data.values || []).slice(1); // skip header
+    return res.json({ rows });
+  } catch(e) {
+    return res.json({ error: e.message });
+  }
+});
+
 app.listen(PORT, () => console.log(`MYWORKSPACE Lead-Finder running on port ${PORT}`));
