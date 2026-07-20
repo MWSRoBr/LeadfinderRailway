@@ -691,7 +691,7 @@ app.post('/api/dashboard-data', async (req, res) => {
     const token = await getGoogleToken();
     if (!token) return res.json({ error: 'Google Auth fehlgeschlagen.' });
     const resp = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:G`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:I`,
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
     const data = await resp.json();
