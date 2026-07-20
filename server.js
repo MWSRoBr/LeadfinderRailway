@@ -544,17 +544,23 @@ app.post('/api/search', async (req, res) => {
     const signaleHoch = 'Neubau, Umbau, Erweiterungsbau, Baugenehmigung, Finanzierungsrunde, Kapitalerhöhung, KfW-Förderung';
     const signaleMittel = 'Expansion, neuer Standort, Mitarbeiterwachstum, Fusion, New Work, Führungswechsel, Generationswechsel';
 
-    const jsonText = await claudeSonnet(apiKey,
-      `Gib NUR ein JSON-Objekt zurück. Beginne mit {
+    let jsonText = '';
+    try {
+      jsonText = await claudeSonnet(apiKey,
+        `Gib NUR ein JSON-Objekt zurück. Beginne mit {
 ${strictRule}
 NICHT: DAX-Konzerne, VW, Continental, Siemens, BMW, BASF, Bayer, Allianz, Bürovermietungen, Kammern, Portale, Messen, Messegesellschaften, Kultureinrichtungen, Theater, Opern, Konzerthäuser, Museen, öffentliche Institutionen, Stadtbetriebe, Bundesbehörden, Hochschulen, Verbände.
 NUR: privatwirtschaftliche, inhabergeführte Unternehmen ab 50 MA. Keine börsennotierten Konzerne.
 Maximal 6 Unternehmen. Priorität HOCH zuerst, dann MITTEL.
 Priorität HOCH: starkes Signal (${signaleHoch})
 Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
-      `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
-      4000
-    );
+        `BRANCHEN:\n${branchenText}\n\nSUCHERGEBNISSE:\n${rawText}\n\n{"branchen":[{"name":"...","staerke":"stark/moderat","begruendung":"..."}],"leads":[{"name":"Firmenname","branche":"...","ort":"...","plz":"...","prioritaet":"Hoch oder Mittel","signale":[{"text":"Konkretes Signal","url":"https://..."}],"warumJetzt":"Warum in ${dates.today} relevant? Projektzeitraum nennen. 2-3 Saetze.","ansprechpartner":{"name":"GF/Inhaber oder nicht oeffentlich","funktion":"Inhaber oder GF"}}]}`,
+        4000
+      );
+    } catch(companyErr) {
+      console.log('Company Sonnet failed:', companyErr.message);
+      return res.json({ error: { message: companyErr.message === 'overloaded' ? 'overloaded' : companyErr.message } });
+    }
 
     // Logging
     const parsed = jsonText ? (() => { try { const m = jsonText.match(/\{[\s\S]*\}/); return m ? JSON.parse(m[0]) : null; } catch(e) { return null; } })() : null;
