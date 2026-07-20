@@ -418,6 +418,11 @@ async function startSearch(strictness){
 
     renderResults(branchen,projects,leads,searchData._dateRange,searchData._orte,projData._range);
 
+    // Logging mit Namen
+    var projNamen = projects.map(function(p){return p.projektname||'';}).filter(Boolean);
+    var firmNamen = leads.map(function(l){return l.name||'';}).filter(Boolean);
+    logSearchResult(projects.length, leads.length, projNamen, firmNamen);
+
     var msgs=[];
     if(projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
     if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+(leads.length===1?' Firma':' Firmen')+' ('+h+' Hoch)');}
@@ -592,6 +597,7 @@ function openProjProfil(idx){
 async function openFirmenProfil(idx){
   var lead=window._leads[idx]; if(!lead) return;
   if(!await checkAuth()) return;
+  logDetail('Firmenprofil', lead.name);
   document.getElementById('modalTitle').textContent=lead.name+' – Firmenprofil';
   document.getElementById('modalBody').innerHTML='<div class="m-load"><div class="m-spin"></div>Firmenprofil wird recherchiert – bitte 20–30 Sekunden warten...</div>';
   document.getElementById('modalOverlay').classList.add('active');
@@ -684,6 +690,7 @@ function printResults(){
 async function researchProject(idx){
   var p=window._projects[idx]; if(!p) return;
   if(!await checkAuth()) return;
+  logDetail('Web-Recherche', p.projektname);
   var container=document.getElementById('proj-research-'+idx);
   if(!container) return;
   container.innerHTML='<div class="m-load"><div class="m-spin"></div>Recherche läuft – bitte 20–30 Sekunden warten...</div>';
@@ -746,6 +753,31 @@ function logout(){
 
 // Passwortabfrage beim Seitenaufruf
 window.addEventListener('DOMContentLoaded', function(){ checkAuth(); });
+async function logSearchResult(projekte, firmen, projNamen, firmNamen){
+  try{
+    await fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        password:_pw,
+        plz:document.getElementById('plzInput').value.trim(),
+        projekte, firmen,
+        projektnamen: projNamen||[],
+        firmennamen: firmNamen||[]
+      })});
+  }catch(e){}
+}
+
+async function logDetail(aktion, name){
+  try{
+    await fetch('/api/log-detail',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        password:_pw,
+        aktion: aktion,
+        name: name,
+        plz: document.getElementById('plzInput').value.trim()
+      })});
+  }catch(e){}
+}
+
 function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
