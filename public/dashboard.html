@@ -238,7 +238,10 @@ function renderDashboard() {
         <button class="time-btn${_currentRange==='30'?' active':''}" onclick="setRange('30')">Letzte 30 Tage</button>
         <button class="time-btn${_currentRange==='365'?' active':''}" onclick="setRange('365')">Letztes Jahr</button>
       </div>
-      <div class="chart-wrap"><canvas id="trendChart" role="img" aria-label="Suchläufe pro Tag"></canvas></div>
+      <div class="chart-wrap" style="position:relative">
+        <canvas id="trendChart" role="img" aria-label="Suchläufe pro Tag"></canvas>
+        <div id="msTooltip" style="display:none;position:absolute;background:#111;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.6;pointer-events:none;max-width:260px;z-index:10"></div>
+      </div>
       <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0ede8;display:flex;flex-wrap:wrap;gap:16px">
         ${MILESTONES.map(function(ms,i){ return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#555"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:'+ms.color+';color:#fff;font-size:10px;font-weight:700;flex-shrink:0">'+(i+1)+'</span><span><strong>'+ms.datum+'</strong> — '+ms.label+'</span></div>'; }).join('')}
       </div>
@@ -287,6 +290,32 @@ function renderDashboard() {
   `;
 
   renderChart(_currentRange, searches);
+
+  // Milestone mouseover
+  var msCvs = document.getElementById('trendChart');
+  var msTip = document.getElementById('msTooltip');
+  if (msCvs && msTip) {
+    msCvs.addEventListener('mousemove', function(e) {
+      if (!_chart || isYear || milestoneData.length === 0) { msTip.style.display='none'; return; }
+      var rect = msCvs.getBoundingClientRect();
+      var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      var hit = null;
+      milestoneData.forEach(function(ms) {
+        var cx = _chart.scales.x.getPixelForTick(ms.x);
+        var cy = _chart.scales.y.top + 10;
+        if (Math.abs(mx-cx)<14 && Math.abs(my-cy)<14) hit = ms;
+      });
+      if (hit) {
+        var num = milestoneData.indexOf(hit)+1;
+        var circle = ['①','②','③','④','⑤'][num-1]||num;
+        msTip.innerHTML = '<strong style="color:'+hit.color+'">'+circle+' '+hit.datum+'</strong><br>'+hit.label;
+        msTip.style.display='block';
+        msTip.style.left=(mx+14)+'px';
+        msTip.style.top=(my-10)+'px';
+      } else { msTip.style.display='none'; }
+    });
+    msCvs.addEventListener('mouseleave', function(){ msTip.style.display='none'; });
+  }
 }
 
 function setRange(range) {
@@ -304,7 +333,7 @@ function renderChart(range, searches) {
   var isYear = range === '365';
   var days = parseInt(range);
   var now = new Date();
-  var labels = [], data = [], bgColors = [], borderColors = [];
+  var labels = [], data = [], bgColors = [], borderColors = [], dailyUsers = [];
 
   if (isYear) {
     // Monthly view
@@ -327,9 +356,12 @@ function renderChart(range, searches) {
       d.setDate(now.getDate() - i);
       var dateStr = formatDateDE(d);
       labels.push(('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.');
-      var count = searches.filter(function(r) { return r[0] === dateStr; }).length;
-      data.push(count);
-      // Weekend / Feiertag -> light bg marker (handled via annotation plugin alternative)
+      var daySearches = searches.filter(function(r) { return r[0] === dateStr; });
+      data.push(daySearches.length);
+      // Build user map for tooltip
+      var userMap = {};
+      daySearches.forEach(function(r){ userMap[r[2]] = (userMap[r[2]]||0)+1; });
+      dailyUsers.push({date: dateStr, users: userMap});
       var isWE = isWeekend(d);
       var isFF = isFeiertag(d);
       bgColors.push((isWE||isFF) ? 'rgba(180,178,169,0.15)' : 'rgba(255,255,255,0)');
@@ -377,7 +409,27 @@ function renderChart(range, searches) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { title: function(items) { return labels[items[0].dataIndex]; } } }
+        tooltip: {
+          callbacks: {
+            title: function(items) {
+              var idx = items[0].dataIndex;
+              if (isYear) return labels[idx];
+              return dailyUsers[idx] ? dailyUsers[idx].date : labels[idx];
+            },
+            label: function(item) { return ''; },
+            afterBody: function(items) {
+              var idx = items[0].dataIndex;
+              if (isYear || !dailyUsers[idx]) return [];
+              var um = dailyUsers[idx].users;
+              var lines = [];
+              Object.keys(um).sort(function(a,b){ return um[b]-um[a]; }).forEach(function(u){
+                lines.push('  ' + u + ' (' + um[u] + '×)');
+              });
+              return lines.length ? lines : ['  Keine Suchläufe'];
+            }
+          },
+          displayColors: false
+        }
       },
       scales: {
         y: { beginAtZero: true, ticks: { stepSize: 1, color: '#888', font:{size:11} }, grid: { color: '#f0ede8' } },
