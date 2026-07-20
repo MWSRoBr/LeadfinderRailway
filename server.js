@@ -7,19 +7,21 @@ const ANTHROPIC_KEY = process.env.API_Anthropic;
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
-  'MW-rb2024': 'Ralf Ballweber',
-  'MW-jb5817': 'Jonathan Beckmann',
-  'MW-tb3392': 'Thorben Buck',
-  'MW-hf7741': 'Holger Feuchter',
-  'MW-ag4156': 'Antonios Genois',
-  'MW-ng8823': 'Nasir Gihasi',
-  'MW-jh6634': 'Jörg Horstmann',
-  'MW-dm2291': 'Daniel Müller',
-  'MW-dv5478': 'Dusan Vujancevic',
-  'MW-wg9912': 'Walter van Gassen',
-  'MW-mm3367': 'Michael Mattern',
-  'MW-rb7754': 'Robin Brendel'
+  'MW-rb2024': 'Ralf',
+  'MW-jb5817': 'Jonathan',
+  'MW-tb3392': 'Thorben',
+  'MW-hf7741': 'Holger',
+  'MW-ag4156': 'Antonios',
+  'MW-ng8823': 'Nasir',
+  'MW-jh6634': 'Jörg',
+  'MW-dm2291': 'Daniel',
+  'MW-dv5478': 'Dusan',
+  'MW-wg9912': 'Walter',
+  'MW-mm3367': 'Michael',
+  'MW-rb7754': 'Robin'
 };
+
+
 
 // ── GOOGLE SHEETS LOGGING ──────────────────────────────────────
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
