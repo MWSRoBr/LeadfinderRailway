@@ -282,6 +282,34 @@ function renderDashboard() {
     </div>
 
     <div class="card">
+      <div class="card-title">Recherchierte Bauprojekte</div>
+      ${webRecherchen.length === 0 ? '<p style="font-size:13px;color:#888">Noch keine Web-Recherchen gestartet.</p>' :
+      `<table class="tbl">
+        <tr><th>Datum</th><th>Nutzer</th><th>Projekt</th><th>PLZ</th></tr>
+        ${webRecherchen.map(r => `<tr>
+          <td>${r[0]}</td>
+          <td>${r[2]}</td>
+          <td style="font-weight:500">${r[7]||'–'}</td>
+          <td>${r[3]||'–'}</td>
+        </tr>`).join('')}
+      </table>`}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recherchierte Firmen</div>
+      ${firmenProfile.length === 0 ? '<p style="font-size:13px;color:#888">Noch keine Firmenprofile abgerufen.</p>' :
+      `<table class="tbl">
+        <tr><th>Datum</th><th>Nutzer</th><th>Firma</th><th>PLZ</th></tr>
+        ${firmenProfile.map(r => `<tr>
+          <td>${r[0]}</td>
+          <td>${r[2]}</td>
+          <td style="font-weight:500">${r[7]||'–'}</td>
+          <td>${r[3]||'–'}</td>
+        </tr>`).join('')}
+      </table>`}
+    </div>
+
+    <div class="card">
       <div class="card-title">Gesuchte Regionen</div>
       <div class="region-mini">
         ${plzSorted.map(([plz, cnt]) => `<span class="region-tag">${plz} <strong>${cnt}×</strong></span>`).join('')}
