@@ -52,7 +52,7 @@ async function getGoogleToken() {
   } catch(e) { console.log('Google token error:', e.message); return null; }
 }
 
-async function logToSheets(nutzer, aktion, plz, projekte, firmen) {
+async function logToSheets(nutzer, aktion, plz, projekte, firmen, projektnamen, firmennamen) {
   if (!SHEET_ID || !SERVICE_ACCOUNT) return;
   try {
     const token = await getGoogleToken();
@@ -60,10 +60,18 @@ async function logToSheets(nutzer, aktion, plz, projekte, firmen) {
     const now = new Date();
     const berlin = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
     const uhrzeitStr = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }).format(now);
-    const datum = berlin;
-    const uhrzeit = uhrzeitStr;
-    const row = [datum, uhrzeit, nutzer, plz || '–', aktion, projekte ?? '–', firmen ?? '–'];
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:G1:append?valueInputOption=USER_ENTERED`, {
+    const row = [
+      berlin,
+      uhrzeitStr,
+      nutzer,
+      plz || '–',
+      aktion,
+      projekte ?? '–',
+      firmen ?? '–',
+      projektnamen || '–',
+      firmennamen || '–'
+    ];
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I1:append?valueInputOption=USER_ENTERED`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [row] })
@@ -82,10 +90,10 @@ async function initSheet() {
     });
     const data = await check.json();
     if (!data.values) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:G1?valueInputOption=USER_ENTERED`, {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:I1?valueInputOption=USER_ENTERED`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values: [['Datum', 'Uhrzeit', 'Nutzer', 'PLZ', 'Aktion', 'Projekte', 'Firmen']] })
+        body: JSON.stringify({ values: [['Datum', 'Uhrzeit', 'Nutzer', 'PLZ', 'Aktion', 'Projekte', 'Firmen', 'Projektnamen', 'Firmennamen']] })
       });
     }
   } catch(e) { console.log('Sheet init error:', e.message); }
@@ -639,9 +647,20 @@ app.post('/api/project-research', async (req, res) => {
 
 // ── COMBINED LOG ENDPOINT ─────────────────────────────────────
 app.post('/api/log', async (req, res) => {
-  const { password, plz, projekte, firmen } = req.body;
+  const { password, plz, projekte, firmen, projektnamen, firmennamen } = req.body;
   const nutzer = USERS[password] || 'unbekannt';
-  await logToSheets(nutzer, 'Suchlauf', plz || '–', projekte ?? '–', firmen ?? '–');
+  await logToSheets(nutzer, 'Suchlauf', plz || '–', projekte ?? '–', firmen ?? '–',
+    Array.isArray(projektnamen) ? projektnamen.join(', ') : (projektnamen || '–'),
+    Array.isArray(firmennamen) ? firmennamen.join(', ') : (firmennamen || '–')
+  );
+  return res.json({ ok: true });
+});
+
+// ── RESEARCH/PROFILE CLICK LOGGING ────────────────────────────
+app.post('/api/log-detail', async (req, res) => {
+  const { password, aktion, name, plz } = req.body;
+  const nutzer = USERS[password] || 'unbekannt';
+  await logToSheets(nutzer, aktion || 'Detail', plz || '–', '–', '–', name || '–', '–');
   return res.json({ ok: true });
 });
 
