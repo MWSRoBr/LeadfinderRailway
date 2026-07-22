@@ -98,8 +98,8 @@ var FEIERTAGE_2026 = [
 
 // Milestones
 var MILESTONES = [
-  { datum: '22.06.2026', label: 'Rollout Salesteam', color: '#3d6b1a' },
-  { datum: '20.07.2026', label: 'Firmennamen-Logging & Web-Recherchen aktiv', color: '#2a4a7f' }
+  { nr: 1, datum: '22.06.2026', label: 'Rollout Salesteam', color: '#3d6b1a' },
+  { nr: 2, datum: '20.07.2026', label: 'Firmennamen-Logging & Web-Recherchen aktiv', color: '#2a4a7f' }
 ];
 
 async function doLogin() {
@@ -213,7 +213,18 @@ function renderDashboard() {
 
   // PLZ regions
   var plzCount = {};
-  searches.forEach(r => { var p=r[3]||'–'; plzCount[p]=(plzCount[p]||0)+1; });
+  searches.forEach(r => {
+    var raw = r[3] || '';
+    if (!raw || raw === '–') return;
+    // An Komma splitten, einzelne Städte zählen (PLZ-Bereiche wie "50-56" überspringen)
+    raw.split(',').forEach(function(part) {
+      var city = part.trim();
+      if (!city) return;
+      // PLZ-Bereiche und reine Zahlen ausfiltern (z.B. "50-56", "53", "41-48")
+      if (/^\d[\d\-\s,]*$/.test(city)) return;
+      plzCount[city] = (plzCount[city] || 0) + 1;
+    });
+  });
   var plzSorted = Object.entries(plzCount).sort((a,b)=>b[1]-a[1]);
 
   var maxS = Math.max(...Object.values(userStats).map(u=>u.searches), 1);
@@ -236,14 +247,14 @@ function renderDashboard() {
         <button class="time-btn${_currentRange==='7'?' active':''}" onclick="setRange('7')">Letzte Woche</button>
         <button class="time-btn${_currentRange==='14'?' active':''}" onclick="setRange('14')">Letzte 2 Wochen</button>
         <button class="time-btn${_currentRange==='30'?' active':''}" onclick="setRange('30')">Letzte 30 Tage</button>
-        <button class="time-btn${_currentRange==='365'?' active':''}" onclick="setRange('365')">Letztes Jahr</button>
+        <button class="time-btn${_currentRange==='60'?' active':''}" onclick="setRange('60')">Letzte 2 Monate</button>
       </div>
       <div class="chart-wrap" style="position:relative">
         <canvas id="trendChart" role="img" aria-label="Suchläufe pro Tag"></canvas>
         <div id="msTooltip" style="display:none;position:absolute;background:#111;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.6;pointer-events:none;max-width:260px;z-index:10"></div>
       </div>
       <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f0ede8;display:flex;flex-wrap:wrap;gap:16px">
-        ${MILESTONES.map(function(ms,i){ return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#555"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:'+ms.color+';color:#fff;font-size:10px;font-weight:700;flex-shrink:0">'+(i+1)+'</span><span><strong>'+ms.datum+'</strong> — '+ms.label+'</span></div>'; }).join('')}
+        ${MILESTONES.map(function(ms){ return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#555"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:'+ms.color+';color:#fff;font-size:10px;font-weight:700;flex-shrink:0">'+ms.nr+'</span><span><strong>'+ms.datum+'</strong> — '+ms.label+'</span></div>'; }).join('')}
       </div>
     </div>
 
@@ -257,8 +268,8 @@ function renderDashboard() {
           <th>Aktivität</th>
           <th style="text-align:right">Proj.</th>
           <th style="text-align:right">Firm.</th>
-          <th style="text-align:right">Proj.-Rec.</th>
-          <th style="text-align:right">Firm.-Prof.</th>
+          <th style="text-align:right">Bauprojekt-Rec.</th>
+          <th style="text-align:right">Firmen-Rec.</th>
         </tr>
         ${allUsers.map(u => {
           var s = userStats[u];
@@ -282,10 +293,10 @@ function renderDashboard() {
     </div>
 
     <div class="card">
-      <div class="card-title">Recherchierte Bauprojekte</div>
+      <div class="card-title">Bauprojekt-Recherche</div>
       ${webRecherchen.length === 0 ? '<p style="font-size:13px;color:#888">Noch keine Web-Recherchen gestartet.</p>' :
       `<table class="tbl">
-        <tr><th>Datum</th><th>Nutzer</th><th>Projekt</th><th>PLZ</th></tr>
+        <tr><th style="width:110px">Datum</th><th style="width:120px">Nutzer</th><th>Projekt</th><th style="width:90px">PLZ</th></tr>
         ${webRecherchen.map(r => `<tr>
           <td>${r[0]}</td>
           <td>${r[2]}</td>
@@ -296,10 +307,10 @@ function renderDashboard() {
     </div>
 
     <div class="card">
-      <div class="card-title">Recherchierte Firmen</div>
+      <div class="card-title">Firmen-Recherche</div>
       ${firmenProfile.length === 0 ? '<p style="font-size:13px;color:#888">Noch keine Firmenprofile abgerufen.</p>' :
       `<table class="tbl">
-        <tr><th>Datum</th><th>Nutzer</th><th>Firma</th><th>PLZ</th></tr>
+        <tr><th style="width:110px">Datum</th><th style="width:120px">Nutzer</th><th>Firma</th><th style="width:90px">PLZ</th></tr>
         ${firmenProfile.map(r => `<tr>
           <td>${r[0]}</td>
           <td>${r[2]}</td>
@@ -310,7 +321,7 @@ function renderDashboard() {
     </div>
 
     <div class="card">
-      <div class="card-title">Gesuchte Regionen</div>
+      <div class="card-title">Gesuchte Städte</div>
       <div class="region-mini">
         ${plzSorted.map(([plz, cnt]) => `<span class="region-tag">${plz} <strong>${cnt}×</strong></span>`).join('')}
       </div>
@@ -334,7 +345,7 @@ function renderDashboard() {
         if (Math.abs(mx-cx)<14 && Math.abs(my-cy)<14) hit = ms;
       });
       if (hit) {
-        var num = milestoneData.indexOf(hit)+1;
+        var num = hit.nr;
         var circle = ['①','②','③','④','⑤'][num-1]||num;
         msTip.innerHTML = '<strong style="color:'+hit.color+'">'+circle+' '+hit.datum+'</strong><br>'+hit.label;
         msTip.style.display='block';
@@ -351,14 +362,14 @@ function setRange(range) {
   var searches = _rows.filter(r => r[4] === 'Suchlauf');
   // Update button states
   document.querySelectorAll('.time-btn').forEach(function(btn, i) {
-    var ranges = ['7','14','30','365'];
+    var ranges = ['7','14','30','60'];
     btn.classList.toggle('active', ranges[i] === range);
   });
   renderChart(range, searches);
 }
 
 function renderChart(range, searches) {
-  var isYear = range === '365';
+  var isYear = false;
   var days = parseInt(range);
   var now = new Date();
   var labels = [], data = [], bgColors = [], borderColors = [], dailyUsers = [];
@@ -403,14 +414,16 @@ function renderChart(range, searches) {
   // Build milestone annotations as vertical lines via plugin
   var milestoneData = [];
   if (!isYear) {
+    var startDate0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    startDate0.setDate(startDate0.getDate() - (days-1));
     MILESTONES.forEach(function(ms) {
       var msDate = parseDateDE(ms.datum);
       if (!msDate) return;
-      var startDate = new Date(now);
-      startDate.setDate(now.getDate() - (days-1));
-      if (msDate >= startDate && msDate <= now) {
-        var diff = Math.round((msDate - startDate) / 86400000);
-        milestoneData.push({ x: diff, label: ms.label, color: ms.color });
+      var msMidnight = new Date(msDate.getFullYear(), msDate.getMonth(), msDate.getDate());
+      var nowMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (msMidnight >= startDate0 && msMidnight <= nowMid) {
+        var diff = Math.round((msMidnight - startDate0) / 86400000);
+        milestoneData.push({ x: diff, nr: ms.nr, label: ms.label, color: ms.color });
       }
     });
   }
@@ -490,6 +503,7 @@ function renderChart(range, searches) {
         // Draw milestone lines
         milestoneData.forEach(function(ms) {
           if (ms.x < 0 || ms.x >= labels.length) return;
+          var msNr = ms.nr;
           var x = xScale.getPixelForTick(ms.x);
           ctx2.save();
           ctx2.beginPath();
@@ -501,7 +515,6 @@ function renderChart(range, searches) {
           ctx2.stroke();
           ctx2.setLineDash([]);
           // Number circle at top of line
-          var num = milestoneData.indexOf(ms) + 1;
           ctx2.fillStyle = ms.color;
           ctx2.beginPath();
           ctx2.arc(x, yScale.top + 10, 9, 0, Math.PI * 2);
@@ -510,7 +523,7 @@ function renderChart(range, searches) {
           ctx2.font = 'bold 10px sans-serif';
           ctx2.textAlign = 'center';
           ctx2.textBaseline = 'middle';
-          ctx2.fillText(String(num), x, yScale.top + 10);
+          ctx2.fillText(String(msNr), x, yScale.top + 10);
           ctx2.textAlign = 'left';
           ctx2.textBaseline = 'alphabetic';
           ctx2.restore();
