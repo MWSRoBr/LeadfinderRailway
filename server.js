@@ -577,7 +577,7 @@ Priorität MITTEL: schwächeres Signal (${signaleMittel})`,
 
 // ── COMPANY PROFILE ──────────────────────────────────────────────
 app.post('/api/company', async (req, res) => {
-  const { name, ort, branche } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { name, ort, branche, kontext } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !name) return res.status(400).json({ error: 'Missing params' });
 
   const vorlagen = {
@@ -591,18 +591,45 @@ app.post('/api/company', async (req, res) => {
   };
 
   try {
-    // Zwei parallele Queries: Kontaktdaten + Signale getrennt
-    const [rawContacts, rawSignals] = await Promise.all([
+    // 3 parallele Brave-Queries: Kontakte, Signale, Impressum (§5 TMG: GF-Namen Pflicht)
+    const [rawContacts, rawSignals, rawImpressum] = await Promise.all([
       firecrawlSearch(`"${name}" ${ort} Geschäftsführer Inhaber Gründer`, 4).catch(() => ''),
-      firecrawlSearch(`"${name}" ${ort} Expansion Büro Standort Mitarbeiter`, 4).catch(() => '')
+      firecrawlSearch(`"${name}" ${ort} Expansion Büro Standort Mitarbeiter`, 4).catch(() => ''),
+      braveSearch(`"${name}" ${ort} Impressum`, 3).catch(() => [])
     ]);
-    const rawText = [rawContacts, rawSignals].join('\n\n===\n\n').substring(0, 28000);
 
-    const jsonText = await claudeSonnet(apiKey,
-      'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. PRIORITÄT: Echte Namen von Geschäftsführern, Inhabern oder Gründern aus den Suchergebnissen extrahieren – auch aus Presseartikeln, Interviews, Impressum-Seiten oder LinkedIn-Erwähnungen. Wenn ein Name gefunden wird, unbedingt eintragen. Nur wenn wirklich kein Name vorkommt: "nicht öffentlich".',
-      `Firmendaten aus Suchergebnissen:\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"..."},"ansprechpartner":[{"name":"...","funktion":"GF oder Inhaber oder Office Manager oder Facility Manager","telefon":"...","email":"..."}],"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","new_work_affinitaet":"hoch/mittel/gering","new_work_begruendung":"..."},"design_reife":{"stufe":2,"stufe_label":"...","begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend/stabil/sinkend","offene_stellen":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","vertriebsrelevanz":"..."}],"budget":{"umsatz_schaetzung":"...","cluster":"Einstieg/Mid/Premium","produktempfehlung":"..."},"quellen":[{"label":"...","url":"..."}]}`,
-      2000
-    );
+    // Impressum-URL finden und vollständig scrapen (GF, Kontakt, HR-Nummer)
+    let impressumScrape = '';
+    const impressumHit = (rawImpressum || []).find(r => r.url && /impressum|imprint|kontakt/i.test(r.url));
+    const scrapeUrl = impressumHit ? impressumHit.url : (rawImpressum && rawImpressum[0] ? rawImpressum[0].url : null);
+    if (scrapeUrl) {
+      impressumScrape = await firecrawlScrape(scrapeUrl).catch(() => '');
+    }
+
+    const impressumSnippets = (rawImpressum || []).map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n');
+
+    // Kontext von der Startseite (bereits gefundene Infos durchreichen)
+    const kontextBlock = kontext ? `BEREITS BEKANNTE INFORMATIONEN (von der Suchergebnis-Karte, priorisiert nutzen):\n${kontext}\n\n` : '';
+
+    const rawText = [
+      kontextBlock,
+      impressumScrape ? `IMPRESSUM-VOLLTEXT:\n${impressumScrape}` : '',
+      impressumSnippets ? `IMPRESSUM-TREFFER:\n${impressumSnippets}` : '',
+      `KONTAKT-SUCHE:\n${rawContacts}`,
+      `SIGNAL-SUCHE:\n${rawSignals}`
+    ].filter(Boolean).join('\n\n===\n\n').substring(0, 28000);
+
+    let jsonText = '';
+    try {
+      jsonText = await claudeSonnet(apiKey,
+        'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. PRIORITÄT: Echte Namen von Geschäftsführern, Inhabern oder Gründern extrahieren. Das Impressum (§5 TMG) enthält verpflichtend Vertretungsberechtigte, Adresse, Telefon, E-Mail und Handelsregisternummer – diese Angaben unbedingt auswerten und eintragen. Nutze die bereits bekannten Informationen als Basis und ergänze sie. Nur wenn wirklich kein Name/Wert vorkommt: "nicht öffentlich".',
+        `Firmendaten:\n\n${rawText}\n\n{"basis":{"adresse":"...","telefon":"...","email":"...","website":"...","gruendung":"...","mitarbeiter":"...","handelsregister":"..."},"ansprechpartner":[{"name":"...","funktion":"GF oder Inhaber oder Office Manager oder Facility Manager","telefon":"...","email":"..."}],"bueroplanung":{"arbeitskultur":"...","raumbedarf":"...","new_work_affinitaet":"hoch/mittel/gering","new_work_begruendung":"..."},"design_reife":{"stufe":2,"stufe_label":"...","begruendung":"..."},"linkedin":{"groesse":"...","wachstumstrend":"steigend/stabil/sinkend","offene_stellen":"..."},"pressespiegel":[{"datum":"...","titel":"...","zusammenfassung":"...","vertriebsrelevanz":"..."}],"budget":{"umsatz_schaetzung":"...","cluster":"Einstieg/Mid/Premium","produktempfehlung":"..."},"quellen":[{"label":"...","url":"..."}]}`,
+        2500
+      );
+    } catch(companyErr) {
+      console.log('Company Sonnet failed:', companyErr.message);
+      return res.json({ error: { message: companyErr.message === 'overloaded' ? 'overloaded' : companyErr.message } });
+    }
 
     const match = jsonText.match(/\{[\s\S]*\}/);
     let parsed = null;
@@ -617,7 +644,7 @@ app.post('/api/company', async (req, res) => {
 
 // ── PROJECT RESEARCH ─────────────────────────────────────────────
 app.post('/api/project-research', async (req, res) => {
-  const { projektname, standort, quelleUrl } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { projektname, standort, quelleUrl, kontext } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !projektname) return res.status(400).json({ error: 'Missing params' });
 
   try {
@@ -634,7 +661,14 @@ app.post('/api/project-research', async (req, res) => {
       scrapedContent = await firecrawlScrape(quelleUrl);
     }
 
-    const rawText = [scrapedContent, ...searchResults].join('\n\n===\n\n').substring(0, 28000);
+    // Brave-Arrays formatieren
+    const searchText = searchResults.map(arr => Array.isArray(arr)
+      ? arr.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n')
+      : arr).join('\n\n===\n\n');
+
+    const kontextBlock = kontext ? `BEREITS BEKANNTE INFORMATIONEN (von der Suchergebnis-Karte, priorisiert nutzen):\n${kontext}\n\n===\n\n` : '';
+
+    const rawText = [kontextBlock, scrapedContent ? `QUELLARTIKEL-VOLLTEXT:\n${scrapedContent}` : '', searchText].filter(Boolean).join('\n\n===\n\n').substring(0, 28000);
 
     const jsonText = await claudeSonnet(apiKey,
       'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. Extrahiere alle verfügbaren Informationen zu diesem Bauprojekt aus den Suchergebnissen. Fehlende Felder mit "unbekannt" füllen.',
