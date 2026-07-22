@@ -644,35 +644,44 @@ app.post('/api/company', async (req, res) => {
 
 // ── PROJECT RESEARCH ─────────────────────────────────────────────
 app.post('/api/project-research', async (req, res) => {
-  const { projektname, standort, quelleUrl, kontext } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { projektname, standort, quelleUrl, kontext, ankerFakten } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !projektname) return res.status(400).json({ error: 'Missing params' });
 
   try {
-    // 1. Brave: weitere URLs zum Projekt finden
+    // Bekannten Bauherrn/Entwickler als Anker in die Queries aufnehmen
+    const anker = (ankerFakten && ankerFakten.beteiligte) ? ankerFakten.beteiligte : '';
+    const ankerQuery = anker ? ` ${anker}` : '';
+
+    // 1. Brave: gezielt zum richtigen Projekt (mit Anker)
     const searchResults = await Promise.all([
-      braveSearch(`"${projektname}" ${standort||''} Architekt Bauherr Projektentwickler`, 5).catch(() => ''),
-      braveSearch(`"${projektname}" ${standort||''} Baugenehmigung Ausschreibung Fertigstellung`, 5).catch(() => ''),
-      braveSearch(`"${projektname}" ${standort||''} Investition Budget Kosten`, 4).catch(() => '')
+      braveSearch(`"${projektname}" ${standort||''}${ankerQuery} Architekt Bauherr Projektentwickler`, 5).catch(() => []),
+      braveSearch(`"${projektname}" ${standort||''}${ankerQuery} Baugenehmigung Fertigstellung`, 5).catch(() => []),
+      braveSearch(`"${projektname}" ${standort||''}${ankerQuery} Investition Budget`, 4).catch(() => [])
     ]);
 
-    // 2. Firecrawl: Quellartikel vollständig scrapen wenn vorhanden
+    // 2. Firecrawl: Quellartikel vollständig scrapen
     let scrapedContent = '';
     if (quelleUrl && quelleUrl.startsWith('http')) {
       scrapedContent = await firecrawlScrape(quelleUrl);
     }
 
-    // Brave-Arrays formatieren
     const searchText = searchResults.map(arr => Array.isArray(arr)
       ? arr.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n')
       : arr).join('\n\n===\n\n');
 
-    const kontextBlock = kontext ? `BEREITS BEKANNTE INFORMATIONEN (von der Suchergebnis-Karte, priorisiert nutzen):\n${kontext}\n\n===\n\n` : '';
+    const kontextBlock = kontext ? `BEKANNTE FAKTEN ZUM ZIELPROJEKT (verbindlicher Anker):\n${kontext}\n\n===\n\n` : '';
 
     const rawText = [kontextBlock, scrapedContent ? `QUELLARTIKEL-VOLLTEXT:\n${scrapedContent}` : '', searchText].filter(Boolean).join('\n\n===\n\n').substring(0, 28000);
 
+    const systemPrompt = 'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. '
+      + 'WICHTIG - PROJEKT-IDENTITÄT: Die BEKANNTEN FAKTEN oben definieren EINDEUTIG das Zielprojekt (Projektname, Standort, bekannte Beteiligte). '
+      + 'Recherchiere AUSSCHLIESSLICH zu genau diesem Projekt. Wenn ein Suchergebnis ein ANDERES Projekt betrifft (anderer Bauherr, andere Stadt, anderer Projektname), IGNORIERE es vollständig – übernimm daraus keine Daten. '
+      + 'KONFLIKT-ERKENNUNG: Wenn du zu einem Feld einen Wert findest, der einem bekannten Fakt WIDERSPRICHT (z.B. andere Fertigstellung, anderer Bauherr), gib beide Werte im "konflikte"-Array an mit Quelle. Nur bei echten Widersprüchen (zwei konkrete, unterschiedliche Werte) – nicht bei Ergänzungen (leer vs. konkret). '
+      + 'Fehlende Felder mit "unbekannt" füllen.';
+
     const jsonText = await claudeSonnet(apiKey,
-      'Gib NUR ein JSON-Objekt zurück. Beginne mit { Alle Strings einzeilig. Extrahiere alle verfügbaren Informationen zu diesem Bauprojekt aus den Suchergebnissen. Fehlende Felder mit "unbekannt" füllen.',
-      `Projekt: ${projektname}, Standort: ${standort||'unbekannt'}\n\nSuchergebnisse:\n${rawText}\n\n{"projektname":"...","standort":"...","plz":"...","projekttyp":"...","beschreibung":"...","bueroflaeche":"...","gesamtflaeche":"...","investitionsvolumen":"...","fertigstellung":"...","baustart":"...","baugenehmigung":"...","ausschreibungsstatus":"...","moebelbedarfEinschaetzung":"hoch/mittel","ansprechpartner":[{"rolle":"Architekt/Bauherr/Projektentwickler/GU/Vermarktung","firma":"...","name":"...","telefon":"...","email":"...","adresse":"...","url":"..."}],"projektnews":[{"datum":"...","titel":"...","zusammenfassung":"...","url":"..."}],"quellen":[{"label":"...","url":"..."}]}`,
+      systemPrompt,
+      `Zielprojekt: ${projektname}, Standort: ${standort||'unbekannt'}\n\nSuchergebnisse:\n${rawText}\n\n{"projektname":"...","standort":"...","plz":"...","projekttyp":"...","beschreibung":"...","bueroflaeche":"...","gesamtflaeche":"...","investitionsvolumen":"...","fertigstellung":"...","baustart":"...","baugenehmigung":"...","ausschreibungsstatus":"...","moebelbedarfEinschaetzung":"hoch/mittel","ansprechpartner":[{"rolle":"Architekt/Bauherr/Projektentwickler/GU/Vermarktung","firma":"...","name":"...","telefon":"...","email":"...","adresse":"...","url":"..."}],"projektnews":[{"datum":"...","titel":"...","zusammenfassung":"...","url":"..."}],"konflikte":[{"feld":"Fertigstellung","wert_bekannt":"nicht vor 2030","quelle_bekannt":"https://...","wert_recherche":"Frühjahr 2027","quelle_recherche":"https://..."}],"quellen":[{"label":"...","url":"..."}]}`,
       4000
     );
 
