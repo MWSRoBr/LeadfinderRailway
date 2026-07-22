@@ -603,7 +603,16 @@ async function openFirmenProfil(idx){
   document.getElementById('modalOverlay').classList.add('active');
 
   try{
-    var resp=await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:lead.name,ort:lead.ort,branche:lead.branche})});
+    // Kontext von der Karte durchreichen: Signale, Warum-jetzt, Ansprechpartner
+    var kontextParts=[];
+    if(lead.signale&&lead.signale.length) kontextParts.push('Signale: '+lead.signale.map(function(s){return s.text;}).join('; '));
+    if(lead.warumJetzt) kontextParts.push('Warum jetzt: '+lead.warumJetzt);
+    if(lead.ansprechpartner&&lead.ansprechpartner.name) kontextParts.push('Ansprechpartner: '+lead.ansprechpartner.name+(lead.ansprechpartner.funktion?' ('+lead.ansprechpartner.funktion+')':''));
+    if(lead.branche) kontextParts.push('Branche: '+lead.branche);
+    if(lead.plz) kontextParts.push('PLZ: '+lead.plz);
+    var kontext=kontextParts.join('\n');
+
+    var resp=await fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:lead.name,ort:lead.ort,branche:lead.branche,kontext:kontext})});
     var data=await resp.json();
     if(data.error){var msg=data.error.message||data.error;if(msg==='overloaded')msg='Der KI-Server ist gerade überlastet. Bitte 1–2 Minuten warten.';document.getElementById('modalBody').innerHTML='<p style="color:var(--red);padding:20px">'+esc(msg)+'</p>';return;}
     renderFirmenProfil(data._data,data._vorlagen,lead);
@@ -696,8 +705,18 @@ async function researchProject(idx){
   container.innerHTML='<div class="m-load"><div class="m-spin"></div>Recherche läuft – bitte 20–30 Sekunden warten...</div>';
 
   try{
+    // Kontext von der Karte durchreichen
+    var pKontextParts=[];
+    if(p.beschreibung) pKontextParts.push('Beschreibung: '+p.beschreibung);
+    if(p.bueroflaeche&&p.bueroflaeche!=='unbekannt') pKontextParts.push('Bürofläche: '+p.bueroflaeche);
+    if(p.fertigstellung&&p.fertigstellung!=='unbekannt') pKontextParts.push('Fertigstellung: '+p.fertigstellung);
+    if(p.projekttyp) pKontextParts.push('Projekttyp: '+p.projekttyp);
+    if(p.plz) pKontextParts.push('PLZ: '+p.plz);
+    if(p.kontakte&&p.kontakte.length) pKontextParts.push('Bekannte Beteiligte: '+p.kontakte.map(function(k){return (k.rolle||'')+': '+(k.firma||'');}).join('; '));
+    var pKontext=pKontextParts.join('\n');
+
     var resp=await fetch('/api/project-research',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl})});
+      body:JSON.stringify({projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl,kontext:pKontext})});
     var data=await resp.json();
     if(data.error){container.innerHTML='<p style="color:var(--red);padding:12px">'+esc(data.error.message||data.error)+'</p>';return;}
     var d=data._data; if(!d){container.innerHTML='<p style="color:var(--text-muted);padding:12px">Keine weiteren Daten gefunden.</p>';return;}
@@ -755,10 +774,11 @@ function logout(){
 window.addEventListener('DOMContentLoaded', function(){ checkAuth(); });
 async function logSearchResult(projekte, firmen, projNamen, firmNamen){
   try{
+    var staedte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);})).join(', ');
     await fetch('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         password:_pw,
-        plz:document.getElementById('plzInput').value.trim(),
+        plz: staedte || document.getElementById('plzInput').value.trim(),
         projekte, firmen,
         projektnamen: projNamen||[],
         firmennamen: firmNamen||[]
@@ -768,12 +788,13 @@ async function logSearchResult(projekte, firmen, projNamen, firmNamen){
 
 async function logDetail(aktion, name){
   try{
+    var staedte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);})).join(', ');
     await fetch('/api/log-detail',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         password:_pw,
         aktion: aktion,
         name: name,
-        plz: document.getElementById('plzInput').value.trim()
+        plz: staedte || document.getElementById('plzInput').value.trim()
       })});
   }catch(e){}
 }
