@@ -715,8 +715,15 @@ async function researchProject(idx){
     if(p.kontakte&&p.kontakte.length) pKontextParts.push('Bekannte Beteiligte: '+p.kontakte.map(function(k){return (k.rolle||'')+': '+(k.firma||'');}).join('; '));
     var pKontext=pKontextParts.join('\n');
 
+    // Anker: Bauherr/Projektentwickler als Firmenname für gezielte Suche
+    var beteiligteFirmen=(p.kontakte||[]).filter(function(k){
+      var r=(k.rolle||'').toLowerCase();
+      return r.indexOf('bauherr')>=0||r.indexOf('entwickler')>=0||r.indexOf('auftraggeber')>=0||r.indexOf('generalunternehmer')>=0;
+    }).map(function(k){return k.firma;}).filter(Boolean);
+    var ankerFakten={ beteiligte: beteiligteFirmen.join(' ') };
+
     var resp=await fetch('/api/project-research',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl,kontext:pKontext})});
+      body:JSON.stringify({projektname:p.projektname,standort:p.standort,quelleUrl:p.quelleUrl,kontext:pKontext,ankerFakten:ankerFakten})});
     var data=await resp.json();
     if(data.error){container.innerHTML='<p style="color:var(--red);padding:12px">'+esc(data.error.message||data.error)+'</p>';return;}
     var d=data._data; if(!d){container.innerHTML='<p style="color:var(--text-muted);padding:12px">Keine weiteren Daten gefunden.</p>';return;}
@@ -745,8 +752,41 @@ async function researchProject(idx){
       return q.url&&q.url.indexOf('http')===0?'<a href="'+esc(q.url)+'" target="_blank">'+esc(q.label||q.url)+'</a>':'';
     }).join('');
 
+    // Konflikt-Block: nur echte Widersprüche (beide Werte konkret)
+    var konflikte=(d.konflikte||[]).filter(function(k){
+      var wb=(k.wert_bekannt||'').trim().toLowerCase();
+      var wr=(k.wert_recherche||'').trim().toLowerCase();
+      var leer=['','unbekannt','k.a.','–','-','nicht öffentlich','nicht oeffentlich'];
+      return wb&&wr&&leer.indexOf(wb)<0&&leer.indexOf(wr)<0&&wb!==wr;
+    });
+    var konflikteHtml='';
+    if(konflikte.length){
+      konflikteHtml='<div style="margin-bottom:16px;border:1.5px solid #e8a33d;border-radius:8px;overflow:hidden">'
+        +'<div style="background:#fdf6e9;padding:12px 14px;font-size:12.5px;line-height:1.6;color:#7a5a1e;border-bottom:1px solid #f0dcb8">'
+        +'&#9888;&#65039; <strong>Widersprüchliche Angaben gefunden.</strong> Die Quellen machen zu diesem Punkt unterschiedliche Angaben. Bitte vor dem Kundenkontakt selbst prüfen, welche Angabe aktuell ist &ndash; im Zweifel die verlinkte Originalquelle aufrufen.'
+        +'</div>';
+      konflikte.forEach(function(k){
+        konflikteHtml+='<div style="padding:12px 14px;border-bottom:1px solid #f5f5f5">'
+          +'<div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px">'+esc(k.feld||'Angabe')+'</div>'
+          +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+          +'<div style="flex:1;min-width:180px;background:#fdf6e9;border-radius:6px;padding:10px 12px">'
+            +'<div style="font-size:11px;color:#a67c2e;margin-bottom:3px">Aus der Vorschau</div>'
+            +'<div style="font-weight:600;font-size:14px;color:#333">'+esc(k.wert_bekannt)+'</div>'
+            +(k.quelle_bekannt&&k.quelle_bekannt.indexOf('http')===0?'<a href="'+esc(k.quelle_bekannt)+'" target="_blank" style="font-size:11px;color:#3d6b1a">Quelle &#8599;</a>':'')
+          +'</div>'
+          +'<div style="flex:1;min-width:180px;background:#fdf6e9;border-radius:6px;padding:10px 12px">'
+            +'<div style="font-size:11px;color:#a67c2e;margin-bottom:3px">Aus der Web-Recherche</div>'
+            +'<div style="font-weight:600;font-size:14px;color:#333">'+esc(k.wert_recherche)+'</div>'
+            +(k.quelle_recherche&&k.quelle_recherche.indexOf('http')===0?'<a href="'+esc(k.quelle_recherche)+'" target="_blank" style="font-size:11px;color:#3d6b1a">Quelle &#8599;</a>':'')
+          +'</div>'
+          +'</div></div>';
+      });
+      konflikteHtml+='</div>';
+    }
+
     container.innerHTML=
       '<div style="margin-top:4px"><div class="sc-lbl" style="margin-bottom:12px">Recherche-Ergebnisse</div>'
+      +konflikteHtml
       +'<div class="sc-grid" style="margin-bottom:16px">'
       +'<div class="sc-card"><div class="sc-card-lbl">Investitionsvolumen</div><p>'+esc(d.investitionsvolumen||'–')+'</p></div>'
       +'<div class="sc-card"><div class="sc-card-lbl">Gesamtfläche</div><p>'+esc(d.gesamtflaeche||'–')+'</p></div>'
