@@ -253,7 +253,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v16 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v17 · Dashboard v6
 </div>
 
 <script>
@@ -520,7 +520,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
         +'<div class="proj-head"><div><div class="proj-name">'+esc(p.projektname||'–')+'</div>'+(p.bauherr?'<div class="proj-type">'+esc(p.bauherr)+'</div>':'')+'</div>'
         +'<div class="proj-right"><div class="proj-ort">'+esc((p.standort||'').split(',')[0])+'</div></div></div>'
         +'<div class="proj-facts">'
-        +'<div class="proj-fact"><div class="proj-fact-lbl">Fertigstellung</div><div class="proj-fact-val">'+esc(p.fertigstellung||'unbekannt')+'</div></div>'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">'+esc(p.zeitpunkt_typ||'Fertigstellung')+'</div><div class="proj-fact-val">'+esc(p.zeitpunkt||p.fertigstellung||'unbekannt')+'</div></div>'
         +'<div class="proj-fact"><div class="proj-fact-lbl">Bürofläche</div><div class="proj-fact-val">'+esc(p.bueroflaeche||'–')+'</div></div>'
         +'<div class="proj-fact"><div class="proj-fact-lbl">Arbeitsplätze</div><div class="proj-fact-val">'+esc(p.arbeitsplaetze||'–')+'</div></div>'
         +'</div>'
@@ -719,7 +719,7 @@ async function researchProject(idx){
     var pKontextParts=[];
     if(p.beschreibung) pKontextParts.push('Beschreibung: '+p.beschreibung);
     if(p.bueroflaeche&&p.bueroflaeche!=='unbekannt') pKontextParts.push('Bürofläche: '+p.bueroflaeche);
-    if(p.fertigstellung&&p.fertigstellung!=='unbekannt') pKontextParts.push('Fertigstellung: '+p.fertigstellung);
+    if(p.zeitpunkt&&p.zeitpunkt!=='unbekannt') pKontextParts.push((p.zeitpunkt_typ||'Fertigstellung')+': '+p.zeitpunkt);
     if(p.bauherr) pKontextParts.push('Bauherr/Entwickler: '+p.bauherr);
     var pKontext=pKontextParts.join('\n');
 
