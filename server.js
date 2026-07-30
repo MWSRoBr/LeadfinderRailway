@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v16';
+const SERVER_VERSION = 'v17';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -411,30 +411,23 @@ app.post('/api/projects', async (req, res) => {
 
     console.log('Raw project text preview:', rawText.substring(0,500));
     console.log('Calling Sonnet with apiKey:', apiKey ? 'set ('+apiKey.substring(0,8)+'...)' : 'MISSING');
-    // Call 1: Extrahieren (nur Kernfelder)
+    // Ein einziger Call: extrahieren + anreichern (stabiler, günstiger)
     let jsonText = '';
     try {
       jsonText = await claudeSonnet(apiKey,
-        `Gib NUR ein JSON-Array zurück. Beginne mit [ Strings max 100 Zeichen. NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg. ${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'} WICHTIG: Auch öffentliche Bauvorhaben aufnehmen – Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten. Max 8 Projekte.`,
-        `${rawText}\n\n[{"projektname":"...","standort":"nur Stadt","fertigstellung":"...","quelleUrl":"https://..."}]`,
-        4000
+        `Gib NUR ein JSON-Array zurück, beginne mit [ und schließe mit ]. Kein Text davor oder danach. Strings kurz halten.
+NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg.
+${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'}
+Auch öffentliche Bauvorhaben aufnehmen (Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten).
+Feld "zeitpunkt": bevorzugt Fertigstellung; wenn nur Baubeginn bekannt, diesen nehmen. Feld "zeitpunkt_typ": "Fertigstellung" oder "Baubeginn" (was in zeitpunkt steht).
+Feld "beschreibung": nur EIN konkreter harter Zusatzfakt der nicht schon in anderen Feldern steht (besondere Nutzung, Bauphase, Sanierungsdetail). Keine Zusammenfassung, keine Spekulation, keine Wertung. Sonst leerer String.
+Maximal 6 Projekte.`,
+        `${rawText}\n\n[{"projektname":"...","standort":"nur Stadt","zeitpunkt":"...","zeitpunkt_typ":"Fertigstellung oder Baubeginn","bueroflaeche":"Zahl mit Einheit oder leer","arbeitsplaetze":"Zahl oder leer","bauherr":"wichtigster Bauherr/Entwickler oder leer","beschreibung":"...","quelleUrl":"https://..."}]`,
+        5000
       );
     } catch(sonnetErr) {
-      console.log('Sonnet extract failed:', sonnetErr.message);
+      console.log('Sonnet failed:', sonnetErr.message);
       return res.json({ projects: [], _range: dates.range10 });
-    }
-
-    // Call 2: Bewerten (Möbelbedarf + Beschreibung hinzufügen)
-    let jsonText2 = '';
-    try {
-      jsonText2 = await claudeSonnet(apiKey,
-        `Du bekommst Bauprojekte als JSON. Ergänze pro Projekt: "bueroflaeche" (Zahl mit Einheit oder leer), "arbeitsplaetze" (Zahl oder leer), "bauherr" (wichtigster Bauherr/Projektentwickler oder leer), "beschreibung". REGEL beschreibung: Nur EIN konkreter harter Zusatzfakt der NICHT schon in anderen Feldern steht (z.B. besondere Nutzung, Bauphase, Sanierungsdetail). KEINE Zusammenfassung, KEINE Spekulation, KEINE Wertung. Kein solcher Fakt vorhanden: leerer String. Max 6 Projekte. Gib NUR JSON-Array zurück.`,
-        `${jsonText}\n\nSuchergebnisse für Kontext:\n${rawText.substring(0, 8000)}`,
-        4000
-      );
-      if (jsonText2 && jsonText2.includes('[')) jsonText = jsonText2;
-    } catch(e) {
-      console.log('Sonnet evaluate failed, using extract only:', e.message);
     }
 
     console.log('Project JSON preview:', jsonText.substring(0, 300));
@@ -478,7 +471,7 @@ app.post('/api/projects', async (req, res) => {
     // Filter: Projekte mit Fertigstellung in der Vergangenheit ausschließen
     const currentYear = new Date().getFullYear();
     projects = projects.filter(p => {
-      const fertig = p.fertigstellung || '';
+      const fertig = p.zeitpunkt || p.fertigstellung || '';
       const m = fertig.match(/(\d{4})/);
       if (!m) return true; // unbekannt → behalten
       return parseInt(m[1]) >= currentYear;
@@ -487,7 +480,7 @@ app.post('/api/projects', async (req, res) => {
 
     // Sortier-Schlüssel aus Fertigstellung ableiten (Jahr*100 + Monat; unbekannt = ganz ans Ende)
     const fertigKey = (p) => {
-      const f = (p.fertigstellung || '').toLowerCase();
+      const f = (p.zeitpunkt || p.fertigstellung || '').toLowerCase();
       const ym = f.match(/(\d{4})/);
       if (!ym) return 999900; // unbekannt → Ende
       let month = 6; // Default Jahresmitte
