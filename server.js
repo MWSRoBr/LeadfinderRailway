@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v15';
+const SERVER_VERSION = 'v16';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -386,11 +386,10 @@ app.post('/api/projects', async (req, res) => {
     console.log('Project queries:', queries);
 
     // Ausschreibungs-Queries: gezielt auf Vergabeportale + öffentliche Bauvorhaben
-    const ausSites = 'site:evergabe-online.de OR site:ausschreibungen-deutschland.de OR site:bauportal-deutschland.de OR site:deutsches-ausschreibungsblatt.de';
     const ausschreibungsQueries = [
       `${o(0)} Büro Neubau Ausschreibung Vergabe ${y1} ${y2}`,
       `${o(1)} Verwaltungsgebäude öffentlich Neubau Ausschreibung ${y2}`,
-      `Bürogebäude Neubau ${o(2)} ${ausSites}`,
+      `${o(2)} Bürogebäude Neubau Vergabe evergabe ausschreibungen ${y2} ${y3}`,
       `${o(3)} Behörde Hochschule Neubau Büro Vergabe ${y2} ${y3}`
     ];
     console.log('Ausschreibungs queries:', ausschreibungsQueries);
@@ -416,9 +415,9 @@ app.post('/api/projects', async (req, res) => {
     let jsonText = '';
     try {
       jsonText = await claudeSonnet(apiKey,
-        `Gib NUR ein JSON-Array zurück. Beginne mit [ Strings max 100 Zeichen. NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg. ${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'} WICHTIG: Auch öffentliche Bauvorhaben aufnehmen – Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten. Diese haben oft den größten Möbelbedarf. Erfasse die Zahl der Büroarbeitsplätze wenn genannt. Max 8 Projekte.`,
-        `${rawText}\n\n[{"projektname":"...","standort":"...","plz":"...","fertigstellung":"...","projekttyp":"Neubau oder Umbau","arbeitsplaetze":"Zahl wenn genannt sonst leer","quelleUrl":"https://..."}]`,
-        3000
+        `Gib NUR ein JSON-Array zurück. Beginne mit [ Strings max 100 Zeichen. NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg. ${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'} WICHTIG: Auch öffentliche Bauvorhaben aufnehmen – Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten. Max 8 Projekte.`,
+        `${rawText}\n\n[{"projektname":"...","standort":"nur Stadt","fertigstellung":"...","quelleUrl":"https://..."}]`,
+        4000
       );
     } catch(sonnetErr) {
       console.log('Sonnet extract failed:', sonnetErr.message);
@@ -429,7 +428,7 @@ app.post('/api/projects', async (req, res) => {
     let jsonText2 = '';
     try {
       jsonText2 = await claudeSonnet(apiKey,
-        `Du bekommst Bauprojekte als JSON. Ergänze für jedes Projekt: "beschreibung" (max 150 Zeichen), "moebelbedarfEinschaetzung" (hoch/mittel), "bueroflaeche", "arbeitsplaetze" (übernehmen falls vorhanden), "kontakte" ([{"rolle":"...","firma":"...","url":"..."}]). WICHTIG für moebelbedarfEinschaetzung: Projekte mit 100+ Büroarbeitsplätzen oder großer Bürofläche IMMER "hoch". Je mehr Arbeitsplätze, desto höher der Möbelbedarf. Sortiere nach moebelbedarfEinschaetzung hoch zuerst, bei Gleichstand nach Arbeitsplatzzahl absteigend. Max 6 Projekte. Gib NUR JSON-Array zurück.`,
+        `Du bekommst Bauprojekte als JSON. Ergänze pro Projekt: "bueroflaeche" (Zahl mit Einheit oder leer), "arbeitsplaetze" (Zahl oder leer), "bauherr" (wichtigster Bauherr/Projektentwickler oder leer), "beschreibung". REGEL beschreibung: Nur EIN konkreter harter Zusatzfakt der NICHT schon in anderen Feldern steht (z.B. besondere Nutzung, Bauphase, Sanierungsdetail). KEINE Zusammenfassung, KEINE Spekulation, KEINE Wertung. Kein solcher Fakt vorhanden: leerer String. Max 6 Projekte. Gib NUR JSON-Array zurück.`,
         `${jsonText}\n\nSuchergebnisse für Kontext:\n${rawText.substring(0, 8000)}`,
         4000
       );
@@ -480,11 +479,27 @@ app.post('/api/projects', async (req, res) => {
     const currentYear = new Date().getFullYear();
     projects = projects.filter(p => {
       const fertig = p.fertigstellung || '';
-      const match = fertig.match(/(\d{4})/);
-      if (!match) return true; // unbekannt → behalten
-      return parseInt(match[1]) >= currentYear;
+      const m = fertig.match(/(\d{4})/);
+      if (!m) return true; // unbekannt → behalten
+      return parseInt(m[1]) >= currentYear;
     });
     console.log('Projects after past-filter:', projects.length);
+
+    // Sortier-Schlüssel aus Fertigstellung ableiten (Jahr*100 + Monat; unbekannt = ganz ans Ende)
+    const fertigKey = (p) => {
+      const f = (p.fertigstellung || '').toLowerCase();
+      const ym = f.match(/(\d{4})/);
+      if (!ym) return 999900; // unbekannt → Ende
+      let month = 6; // Default Jahresmitte
+      if (/q1|1\.\s*quartal|frühjahr|anfang|januar|februar|märz/.test(f)) month = 2;
+      else if (/q2|2\.\s*quartal|sommer|mitte|april|mai|juni/.test(f)) month = 5;
+      else if (/q3|3\.\s*quartal|herbst|juli|august|september/.test(f)) month = 8;
+      else if (/q4|4\.\s*quartal|winter|ende|oktober|november|dezember/.test(f)) month = 11;
+      if (/nicht vor|ab\s+\d{4}|frühestens/.test(f)) month = 12; // vage Spät-Angabe hinten einsortieren
+      return parseInt(ym[1]) * 100 + month;
+    };
+    projects.sort((a, b) => fertigKey(a) - fertigKey(b));
+    console.log('Projects sorted by Fertigstellung');
 
     // Logging
     return res.json({ projects, _range: dates.range10 });
