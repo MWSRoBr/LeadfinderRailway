@@ -253,7 +253,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v15 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v16 · Dashboard v6
 </div>
 
 <script>
@@ -517,19 +517,17 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
       if(!contactsHtml) contactsHtml='<div class="proj-contact prio3"><p>Kontaktrecherche über Quellenlink empfohlen</p></div>';
 
       html+='<div class="proj-card">'
-        +'<div class="proj-head"><div><div class="proj-name">'+esc(p.projektname||'–')+'</div><div class="proj-type">'+esc(p.projekttyp||'')+'</div></div>'
-        +'<div class="proj-right"><div class="proj-ort">'+esc(p.standort||'')+(p.plz?' &nbsp;'+esc(p.plz):'')+'</div><span class="proj-badge'+(p.moebelbedarfEinschaetzung==='hoch'?' hoch':'')+'">Möbelbedarf: '+esc(p.moebelbedarfEinschaetzung||'–')+'</span></div></div>'
-        +(p.beschreibung?'<p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:14px">'+esc(p.beschreibung)+'</p>':'')
+        +'<div class="proj-head"><div><div class="proj-name">'+esc(p.projektname||'–')+'</div>'+(p.bauherr?'<div class="proj-type">'+esc(p.bauherr)+'</div>':'')+'</div>'
+        +'<div class="proj-right"><div class="proj-ort">'+esc((p.standort||'').split(',')[0])+'</div></div></div>'
         +'<div class="proj-facts">'
+        +'<div class="proj-fact"><div class="proj-fact-lbl">Fertigstellung</div><div class="proj-fact-val">'+esc(p.fertigstellung||'unbekannt')+'</div></div>'
         +'<div class="proj-fact"><div class="proj-fact-lbl">Bürofläche</div><div class="proj-fact-val">'+esc(p.bueroflaeche||'–')+'</div></div>'
         +'<div class="proj-fact"><div class="proj-fact-lbl">Arbeitsplätze</div><div class="proj-fact-val">'+esc(p.arbeitsplaetze||'–')+'</div></div>'
-        +'<div class="proj-fact"><div class="proj-fact-lbl">Fertigstellung</div><div class="proj-fact-val">'+esc(p.fertigstellung||'–')+'</div></div>'
-        +'<div class="proj-fact"><div class="proj-fact-lbl">Ausschreibung</div><div class="proj-fact-val">'+esc(p.ausschreibungsstatus||'–')+'</div></div>'
         +'</div>'
-        +'<div class="slbl">Ansprechpartner (Priorität: Innenarchitekt → Mieter → Auftraggeber)</div>'
-        +'<div class="proj-contacts">'+contactsHtml+'</div>'
+        +(p.beschreibung?'<p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin:12px 0 0">'+esc(p.beschreibung)+'</p>':'')
         +(p.quelleUrl&&p.quelleUrl.indexOf('http')===0?'<div class="proj-quelle">Quelle: <a href="'+esc(p.quelleUrl)+'" target="_blank" rel="noopener">'+esc(p.quelleUrl.replace(/^https?:\/\//,'').split('/')[0])+'</a></div>':'')
-        +'<button class="btn-profil" onclick="openProjProfil('+idx+')" style="margin-top:14px">&#8599;&nbsp; Vollständige Projektinfos</button>'
+        +'<button class="btn-profil" onclick="researchProject('+idx+')" style="margin-top:14px" id="rbtn-'+idx+'">&#128269;&nbsp; Vollständige Recherche starten</button>'
+        +'<div id="proj-research-'+idx+'"></div>'
         +'</div>';
     });
     html+='</div>';
@@ -712,6 +710,8 @@ async function researchProject(idx){
   logDetail('Web-Recherche', p.projektname);
   var container=document.getElementById('proj-research-'+idx);
   if(!container) return;
+  var rbtn=document.getElementById('rbtn-'+idx);
+  if(rbtn){ rbtn.disabled=true; rbtn.innerHTML='&#8987;&nbsp; Recherche läuft…'; }
   container.innerHTML='<div class="m-load"><div class="m-spin"></div>Recherche läuft – bitte 20–30 Sekunden warten...</div>';
 
   try{
@@ -720,16 +720,11 @@ async function researchProject(idx){
     if(p.beschreibung) pKontextParts.push('Beschreibung: '+p.beschreibung);
     if(p.bueroflaeche&&p.bueroflaeche!=='unbekannt') pKontextParts.push('Bürofläche: '+p.bueroflaeche);
     if(p.fertigstellung&&p.fertigstellung!=='unbekannt') pKontextParts.push('Fertigstellung: '+p.fertigstellung);
-    if(p.projekttyp) pKontextParts.push('Projekttyp: '+p.projekttyp);
-    if(p.plz) pKontextParts.push('PLZ: '+p.plz);
-    if(p.kontakte&&p.kontakte.length) pKontextParts.push('Bekannte Beteiligte: '+p.kontakte.map(function(k){return (k.rolle||'')+': '+(k.firma||'');}).join('; '));
+    if(p.bauherr) pKontextParts.push('Bauherr/Entwickler: '+p.bauherr);
     var pKontext=pKontextParts.join('\n');
 
-    // Anker: Bauherr/Projektentwickler als Firmenname für gezielte Suche
-    var beteiligteFirmen=(p.kontakte||[]).filter(function(k){
-      var r=(k.rolle||'').toLowerCase();
-      return r.indexOf('bauherr')>=0||r.indexOf('entwickler')>=0||r.indexOf('auftraggeber')>=0||r.indexOf('generalunternehmer')>=0;
-    }).map(function(k){return k.firma;}).filter(Boolean);
+    // Anker: bekannter Bauherr/Entwickler für gezielte Suche
+    var beteiligteFirmen=p.bauherr?[p.bauherr]:[];
     var ankerFakten={ beteiligte: beteiligteFirmen.join(' ') };
 
     var resp=await fetch('/api/project-research',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -809,7 +804,11 @@ async function researchProject(idx){
       +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
       +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
       +'</div>';
-  }catch(e){container.innerHTML='<p style="color:var(--red);padding:12px">Fehler: '+esc(e.message)+'</p>';}
+    if(rbtn){ rbtn.disabled=false; rbtn.innerHTML='&#128269;&nbsp; Recherche erneut starten'; }
+  }catch(e){
+    container.innerHTML='<p style="color:var(--red);padding:12px">Fehler: '+esc(e.message)+'</p>';
+    if(rbtn){ rbtn.disabled=false; rbtn.innerHTML='&#128269;&nbsp; Recherche starten'; }
+  }
 }
 
 function logout(){
