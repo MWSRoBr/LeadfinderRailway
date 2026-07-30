@@ -252,6 +252,16 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   </div>
 </div>
 
+<div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
+  Server <span id="vServer">…</span> · Index v15 · Dashboard v6
+</div>
+
+<script>
+// Server-Version live abfragen
+fetch('/api/version').then(function(r){return r.json();}).then(function(d){
+  var el=document.getElementById('vServer'); if(el&&d.server) el.textContent=d.server;
+}).catch(function(){ var el=document.getElementById('vServer'); if(el) el.textContent='?'; });
+</script>
 <script>
 var orte=[], plzPrefixes=[], pInterval=null, currentStrictness='ausgewogen';
 var searchCities=[], extraCities=[];
