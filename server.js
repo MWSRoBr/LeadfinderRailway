@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v17';
+const SERVER_VERSION = 'v18';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -431,21 +431,22 @@ Maximal 6 Projekte.`,
     }
 
     console.log('Project JSON preview:', jsonText.substring(0, 300));
-    const match = jsonText.match(/\[[\s\S]*/);
     let projects = [];
-    if (match) {
+    const startIdx = jsonText.indexOf('[');
+    const endIdx = jsonText.lastIndexOf(']');
+    if (startIdx >= 0 && endIdx > startIdx) {
+      // Sauberer Schnitt: nur vom ersten [ bis zum letzten ] – Nachgeplapper ignorieren
+      const clean = jsonText.substring(startIdx, endIdx + 1);
       try {
-        projects = JSON.parse(match[0]);
+        projects = JSON.parse(clean);
       } catch(e) {
         console.log('JSON parse error:', e.message, '— attempting partial rescue');
         try {
-          // Finde letztes vollständiges Objekt (schließende })
-          let raw = match[0];
-          const lastClose = raw.lastIndexOf('},');
-          const lastCloseAlt = raw.lastIndexOf('}\n');
-          const cutAt = Math.max(lastClose, lastCloseAlt);
-          if (cutAt > 0) {
-            const partial = raw.substring(0, cutAt + 1) + ']';
+          // Rettung: bis zum letzten vollständigen Objekt schneiden
+          const raw = jsonText.substring(startIdx);
+          const lastClose = raw.lastIndexOf('}');
+          if (lastClose > 0) {
+            const partial = raw.substring(0, lastClose + 1) + ']';
             projects = JSON.parse(partial);
             console.log('Partial rescue successful:', projects.length, 'projects');
           }
