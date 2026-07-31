@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v21';
+const SERVER_VERSION = 'v23';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -502,22 +502,19 @@ Maximal 6 Projekte.`,
     await Promise.all(toEnrich.map(async (p) => {
       try {
         const scraped = await firecrawlScrape(p.quelleUrl);
-        console.log('[ENRICH]', p.projektname, '| URL:', p.quelleUrl, '| scraped len:', scraped ? scraped.length : 0);
-        if (!scraped || scraped.length < 100) { console.log('[ENRICH] scrape leer/zu kurz, überspringe'); return; }
+        if (!scraped || scraped.length < 100) return;
         const ex = await claudeSonnet(apiKey,
-          'Gib NUR ein JSON-Objekt zurück. Extrahiere Bürofläche (bzw. Miet-/Nutzfläche) und Anzahl Büroarbeitsplätze für GENAU dieses Projekt. WICHTIG: Betrifft der Artikel mehrere Gebäude/Bauabschnitte, nimm NUR die Zahl des im Projektnamen genannten Gebäudes – nicht die Gesamtfläche und nicht die eines anderen Gebäudes. Achte auf Eckdaten-Blöcke, Aufzählungen und Angaben wie "m²", "Quadratmeter", "Mietfläche", "Arbeitsplätze". Nur explizit Genanntes, nicht schätzen. Fehlt eine Angabe: leerer String.',
+          'Gib NUR ein JSON-Objekt zurück. Extrahiere Bürofläche und Anzahl Büroarbeitsplätze für GENAU dieses Projekt. REGELN: (1) Betrifft der Artikel mehrere Gebäude/Bauabschnitte, nimm NUR die Zahl des im Projektnamen genannten Gebäudes. (2) Gibt es eine explizite BÜROfläche, trage sie direkt ein (z.B. "6.000 m²"). (3) Gibt es KEINE reine Bürofläche, aber eine Gesamt-, Brutto- oder Mischnutzungsfläche (Gebäude mit Büro plus Hotel/Gastronomie/Handel o.ä.), trage sie mit Präfix ein: "Mischnutzung: 9.000 m²". (4) Nur explizit Genanntes, nicht schätzen. Fehlt jede Flächenangabe: leerer String.',
           `Projekt: ${p.projektname}\n\nArtikel (Volltext):\n${scraped.substring(0, 30000)}\n\n{"bueroflaeche":"Zahl mit Einheit oder leer","arbeitsplaetze":"Zahl oder leer"}`,
           400
         );
-        console.log('[ENRICH] Sonnet-Antwort:', (ex||'').substring(0, 200));
         const m = ex.match(/\{[\s\S]*\}/);
         if (m) {
           const d = JSON.parse(m[0]);
-          console.log('[ENRICH] geparst:', JSON.stringify(d));
-          if (leer(p.bueroflaeche) && !leer(d.bueroflaeche)) { p.bueroflaeche = d.bueroflaeche; console.log('[ENRICH] -> bueroflaeche gesetzt:', d.bueroflaeche); }
-          if (leer(p.arbeitsplaetze) && !leer(d.arbeitsplaetze)) { p.arbeitsplaetze = d.arbeitsplaetze; console.log('[ENRICH] -> arbeitsplaetze gesetzt:', d.arbeitsplaetze); }
-        } else { console.log('[ENRICH] kein JSON in Antwort gefunden'); }
-      } catch(e) { console.log('[ENRICH] failed for', p.projektname, e.message); }
+          if (leer(p.bueroflaeche) && !leer(d.bueroflaeche)) p.bueroflaeche = d.bueroflaeche;
+          if (leer(p.arbeitsplaetze) && !leer(d.arbeitsplaetze)) p.arbeitsplaetze = d.arbeitsplaetze;
+        }
+      } catch(e) { console.log('Enrich failed for', p.projektname, e.message); }
     }));
     console.log('Enrichment done');
 
