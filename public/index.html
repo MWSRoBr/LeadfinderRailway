@@ -136,6 +136,19 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .sc-card{background:var(--bg);border-radius:6px;padding:12px 14px}
 .sc-card-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:4px}
+.bt-hint{font-size:11px;color:var(--text-muted);background:#faf9f6;border-left:2px solid #d4cfc4;padding:7px 10px;margin-bottom:10px;line-height:1.5;border-radius:0 4px 4px 0}
+.bt-firma{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.bt-firma-head{font-size:14px;font-weight:600;color:var(--text-dark);margin-bottom:8px}
+.bt-rolle{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green);background:#eef3e6;padding:2px 7px;border-radius:10px;margin-right:4px}
+.bt-sub{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin:10px 0 5px}
+.bt-row{display:flex;gap:10px;font-size:12.5px;padding:2px 0;line-height:1.5}
+.bt-k{flex:0 0 110px;color:var(--text-muted)}
+.bt-v{flex:1;color:var(--text-dark)}
+.bt-ap{padding:6px 0;border-bottom:1px solid #f2f0ea}
+.bt-ap:last-child{border-bottom:none}
+.bt-ap-name{font-size:13px;font-weight:600;color:var(--text-dark)}
+.bt-ap-fn{font-weight:400;color:var(--text-muted);font-size:12px}
+.bt-ap-kontakt{font-size:12px;color:var(--text-mid);margin-top:2px}
 .sc-card p{font-size:12px;color:var(--text-mid);line-height:1.5}
 .sc-badge{display:inline-block;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid currentColor;margin-top:5px}
 .reife-dots{display:flex;gap:4px;margin-top:8px}
@@ -253,7 +266,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v23 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v24 · Dashboard v6
 </div>
 
 <script>
@@ -789,6 +802,44 @@ async function researchProject(idx){
       konflikteHtml+='</div>';
     }
 
+    // Beteiligten-Recherche (Etappe 2A): Firmendaten + Ansprechpartner strikt getrennt
+    var beteiligteHtml='';
+    if(d.beteiligte && d.beteiligte.length){
+      d.beteiligte.forEach(function(b){
+        var fd=b.firmendaten||{};
+        var hatFirmendaten=fd.geschaeftsfuehrer||fd.adresse||fd.telefon||fd.email||fd.handelsregister;
+        var aps=b.ansprechpartner||[];
+        // Firmendaten-Block
+        var fdRows='';
+        if(fd.geschaeftsfuehrer) fdRows+='<div class="bt-row"><span class="bt-k">Geschäftsführung</span><span class="bt-v">'+esc(fd.geschaeftsfuehrer)+'</span></div>';
+        if(fd.adresse) fdRows+='<div class="bt-row"><span class="bt-k">Anschrift</span><span class="bt-v">'+esc(fd.adresse)+'</span></div>';
+        if(fd.telefon) fdRows+='<div class="bt-row"><span class="bt-k">Telefon</span><span class="bt-v">'+esc(fd.telefon)+'</span></div>';
+        if(fd.email) fdRows+='<div class="bt-row"><span class="bt-k">E-Mail</span><span class="bt-v">'+esc(fd.email)+'</span></div>';
+        if(fd.handelsregister) fdRows+='<div class="bt-row"><span class="bt-k">Handelsregister</span><span class="bt-v">'+esc(fd.handelsregister)+'</span></div>';
+        // Ansprechpartner-Block
+        var apRows='';
+        aps.forEach(function(ap){
+          if(!ap.name) return;
+          apRows+='<div class="bt-ap">'
+            +'<div class="bt-ap-name">'+esc(ap.name)+(ap.funktion?' <span class="bt-ap-fn">· '+esc(ap.funktion)+'</span>':'')+'</div>'
+            +((ap.telefon||ap.email)?'<div class="bt-ap-kontakt">'+[ap.telefon?esc(ap.telefon):'',ap.email?esc(ap.email):''].filter(Boolean).join(' · ')+'</div>':'')
+            +'</div>';
+        });
+        if(hatFirmendaten||apRows){
+          beteiligteHtml+='<div class="bt-firma">'
+            +'<div class="bt-firma-head"><span class="bt-rolle">'+esc(b.rolle||'')+'</span> '+esc(b.firma||'')+'</div>'
+            +(hatFirmendaten?'<div class="bt-sub">Firmendaten (Impressum)</div>'+fdRows:'')
+            +(apRows?'<div class="bt-sub">Ansprechpartner</div>'+apRows:'')
+            +'</div>';
+        }
+      });
+      if(beteiligteHtml){
+        beteiligteHtml='<div class="sc-lbl" style="margin-bottom:8px">Beteiligte Firmen &amp; Ansprechpartner</div>'
+          +'<div class="bt-hint">Kontaktdaten aus öffentlichen Firmenquellen (Impressum, Team-Seiten). Vor der Ansprache bitte selbst prüfen.</div>'
+          +'<div style="margin-bottom:16px">'+beteiligteHtml+'</div>';
+      }
+    }
+
     container.innerHTML=
       '<div style="margin-top:4px"><div class="sc-lbl" style="margin-bottom:12px">Recherche-Ergebnisse</div>'
       +konflikteHtml
@@ -801,6 +852,7 @@ async function researchProject(idx){
       +'<div class="sc-card"><div class="sc-card-lbl">Ausschreibung</div><p>'+esc(d.ausschreibungsstatus||'–')+'</p></div>'
       +'</div>'
       +(kontakteHtml?'<div class="sc-lbl" style="margin-bottom:8px">Ansprechpartner</div><div class="proj-popup-contacts" style="margin-bottom:16px">'+kontakteHtml+'</div>':'')
+      +beteiligteHtml
       +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
       +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
       +'</div>';
