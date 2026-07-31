@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v20d';
+const SERVER_VERSION = 'v21';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -241,7 +241,7 @@ const firecrawlSearch = async (query, limit) => {
 };
 
 // ── FIRECRAWL SCRAPE (gezieltes URL-Scraping) ─────────────────
-async function firecrawlScrape(url) {
+async function firecrawlScrape(url, maxChars = 30000) {
   if (!FIRECRAWL_KEY) return '';
   try {
     const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -250,7 +250,7 @@ async function firecrawlScrape(url) {
       body: JSON.stringify({ url, formats: ['markdown'] })
     });
     const data = await resp.json();
-    return (data.data?.markdown || '').substring(0, 3000);
+    return (data.data?.markdown || '').substring(0, maxChars);
   } catch(e) { return ''; }
 }
 
@@ -651,7 +651,7 @@ app.post('/api/company', async (req, res) => {
     const impressumHit = (rawImpressum || []).find(r => r.url && /impressum|imprint|kontakt/i.test(r.url));
     const scrapeUrl = impressumHit ? impressumHit.url : (rawImpressum && rawImpressum[0] ? rawImpressum[0].url : null);
     if (scrapeUrl) {
-      impressumScrape = await firecrawlScrape(scrapeUrl).catch(() => '');
+      impressumScrape = await firecrawlScrape(scrapeUrl, 8000).catch(() => '');
     }
 
     const impressumSnippets = (rawImpressum || []).map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n');
