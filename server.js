@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v23';
+const SERVER_VERSION = 'v24';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -733,6 +733,59 @@ app.post('/api/project-research', async (req, res) => {
     const match = jsonText.match(/\{[\s\S]*\}/);
     let parsed = null;
     if (match) { try { parsed = JSON.parse(match[0]); } catch(e) {} }
+
+    // ── ETAPPE 2A: Ansprechpartner-Recherche für relevante Rollen ──
+    if (parsed && Array.isArray(parsed.ansprechpartner)) {
+      const relevanteRollen = /architekt|innenarchitekt|projektentwickler|mieter/i;
+      const relevante = parsed.ansprechpartner.filter(a => a.firma && relevanteRollen.test(a.rolle||''));
+      // pro Firma nur einmal (nach Firmenname dedupliziert)
+      const gesehen = new Set();
+      const zuRecherchieren = relevante.filter(a => {
+        const key = (a.firma||'').toLowerCase().trim();
+        if (!key || gesehen.has(key)) return false;
+        gesehen.add(key); return true;
+      }).slice(0, 4); // maximal 4 Firmen
+
+      const beteiligte = await Promise.all(zuRecherchieren.map(async (a) => {
+        const firma = a.firma;
+        const result = { rolle: a.rolle, firma: firma, projektkontaktName: a.name || '', firmendaten: null, ansprechpartner: [] };
+        try {
+          // Parallel: Impressum-Suche + Team-Suche
+          const [impRes, teamRes] = await Promise.all([
+            braveSearch(`"${firma}" Impressum`, 3).catch(() => []),
+            braveSearch(`"${firma}" Team Ansprechpartner Kontakt`, 3).catch(() => [])
+          ]);
+          // Impressum scrapen
+          const impHit = (impRes||[]).find(r => r.url && /impressum|imprint/i.test(r.url)) || (impRes||[])[0];
+          let impScrape = '';
+          if (impHit && impHit.url) impScrape = await firecrawlScrape(impHit.url, 8000).catch(() => '');
+          // Team-Seite scrapen (nur wenn es einen projektbezogenen Namen gibt zum Anreichern)
+          const teamHit = (teamRes||[]).find(r => r.url && /team|kontakt|ansprechpartner|ueber-uns|about/i.test(r.url)) || (teamRes||[])[0];
+          let teamScrape = '';
+          if (a.name && teamHit && teamHit.url) teamScrape = await firecrawlScrape(teamHit.url, 12000).catch(() => '');
+
+          // Sonnet: Impressum-Firmendaten + Namen-Anreicherung, STRIKT getrennt
+          const exText = await claudeSonnet(apiKey,
+            'Gib NUR ein JSON-Objekt zurück. Trenne STRIKT zwischen Firmendaten (aus Impressum) und Ansprechpartnern. '
+            + 'firmendaten: aus dem Impressum (§5 TMG) – Geschäftsführer/Vertretungsberechtigte, Anschrift, Telefon, E-Mail, Handelsregister. Nur explizit Genanntes. '
+            + 'ansprechpartner: NUR wenn ein projektbezogener Name übergeben wurde, reichere GENAU diesen mit Kontaktdaten aus der Team-/Kontaktseite an (Funktion, Telefon, E-Mail). Liste NICHT die ganze Belegschaft. Wenn der übergebene Name auf der Team-Seite nicht auftaucht, gib ihn trotzdem mit dem aus, was bekannt ist. Kein projektbezogener Name: leeres Array. '
+            + 'Nichts erfinden, nicht schätzen. Fehlende Felder: leerer String.',
+            `Firma: ${firma}\nProjektbezogener Name (falls vorhanden): ${a.name||'KEINER'}\n\nIMPRESSUM:\n${impScrape||'(nichts gefunden)'}\n\nTEAM-/KONTAKTSEITE:\n${teamScrape||'(nichts gefunden)'}\n\n{"firmendaten":{"geschaeftsfuehrer":"...","adresse":"...","telefon":"...","email":"...","handelsregister":"...","quelle":"Impressum-URL"},"ansprechpartner":[{"name":"...","funktion":"...","telefon":"...","email":"...","quelle":"Team-Seite-URL oder Projektkontext"}]}`,
+            1200
+          );
+          const em = exText.match(/\{[\s\S]*\}/);
+          if (em) {
+            const ed = JSON.parse(em[0]);
+            result.firmendaten = ed.firmendaten || null;
+            result.ansprechpartner = Array.isArray(ed.ansprechpartner) ? ed.ansprechpartner : [];
+          }
+        } catch(e) { console.log('Beteiligten-Recherche fehlgeschlagen für', firma, e.message); }
+        return result;
+      }));
+
+      parsed.beteiligte = beteiligte;
+    }
+
     return res.json({ _data: parsed });
 
   } catch (err) {
