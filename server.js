@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v18';
+const SERVER_VERSION = 'v19';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -494,6 +494,29 @@ Maximal 6 Projekte.`,
     };
     projects.sort((a, b) => fertigKey(a) - fertigKey(b));
     console.log('Projects sorted by Fertigstellung');
+
+    // Anreicherung: fehlende Bürofläche/Arbeitsplätze aus Quell-Volltext nachziehen (parallel)
+    const leer = (v) => !v || v === '' || v === '–' || v === 'unbekannt';
+    const toEnrich = projects.filter(p => (leer(p.bueroflaeche) || leer(p.arbeitsplaetze)) && p.quelleUrl && p.quelleUrl.startsWith('http'));
+    console.log('Enriching', toEnrich.length, 'projects via scrape');
+    await Promise.all(toEnrich.map(async (p) => {
+      try {
+        const scraped = await firecrawlScrape(p.quelleUrl);
+        if (!scraped || scraped.length < 100) return;
+        const ex = await claudeSonnet(apiKey,
+          'Gib NUR ein JSON-Objekt zurück. Extrahiere aus dem Artikel Bürofläche und Anzahl Büroarbeitsplätze für DIESES Projekt. Nur was explizit dasteht, nicht schätzen. Fehlt eine Angabe: leerer String.',
+          `Projekt: ${p.projektname}\n\nArtikel:\n${scraped.substring(0, 12000)}\n\n{"bueroflaeche":"Zahl mit Einheit oder leer","arbeitsplaetze":"Zahl oder leer"}`,
+          400
+        );
+        const m = ex.match(/\{[\s\S]*\}/);
+        if (m) {
+          const d = JSON.parse(m[0]);
+          if (leer(p.bueroflaeche) && !leer(d.bueroflaeche)) p.bueroflaeche = d.bueroflaeche;
+          if (leer(p.arbeitsplaetze) && !leer(d.arbeitsplaetze)) p.arbeitsplaetze = d.arbeitsplaetze;
+        }
+      } catch(e) { console.log('Enrich failed for', p.projektname, e.message); }
+    }));
+    console.log('Enrichment done');
 
     // Logging
     return res.json({ projects, _range: dates.range10 });
