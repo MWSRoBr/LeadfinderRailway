@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v19';
+const SERVER_VERSION = 'v20';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -504,8 +504,8 @@ Maximal 6 Projekte.`,
         const scraped = await firecrawlScrape(p.quelleUrl);
         if (!scraped || scraped.length < 100) return;
         const ex = await claudeSonnet(apiKey,
-          'Gib NUR ein JSON-Objekt zurück. Extrahiere aus dem Artikel Bürofläche und Anzahl Büroarbeitsplätze für DIESES Projekt. Nur was explizit dasteht, nicht schätzen. Fehlt eine Angabe: leerer String.',
-          `Projekt: ${p.projektname}\n\nArtikel:\n${scraped.substring(0, 12000)}\n\n{"bueroflaeche":"Zahl mit Einheit oder leer","arbeitsplaetze":"Zahl oder leer"}`,
+          'Gib NUR ein JSON-Objekt zurück. Extrahiere Bürofläche (bzw. Miet-/Nutzfläche) und Anzahl Büroarbeitsplätze für GENAU dieses Projekt. WICHTIG: Betrifft der Artikel mehrere Gebäude/Bauabschnitte, nimm NUR die Zahl des im Projektnamen genannten Gebäudes – nicht die Gesamtfläche und nicht die eines anderen Gebäudes. Achte auf Eckdaten-Blöcke, Aufzählungen und Angaben wie "m²", "Quadratmeter", "Mietfläche", "Arbeitsplätze". Nur explizit Genanntes, nicht schätzen. Fehlt eine Angabe: leerer String.',
+          `Projekt: ${p.projektname}\n\nArtikel (Volltext):\n${scraped.substring(0, 30000)}\n\n{"bueroflaeche":"Zahl mit Einheit oder leer","arbeitsplaetze":"Zahl oder leer"}`,
           400
         );
         const m = ex.match(/\{[\s\S]*\}/);
