@@ -149,6 +149,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .bt-ap-name{font-size:13px;font-weight:600;color:var(--text-dark)}
 .bt-ap-fn{font-weight:400;color:var(--text-muted);font-size:12px}
 .bt-ap-kontakt{font-size:12px;color:var(--text-mid);margin-top:2px}
+.q-grp{margin-bottom:10px}
+.q-grp-t{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
+.q-link{display:block;font-size:12px;color:var(--green);text-decoration:none;padding:2px 0;word-break:break-all}
+.q-link:hover{text-decoration:underline}
 .sc-card p{font-size:12px;color:var(--text-mid);line-height:1.5}
 .sc-badge{display:inline-block;font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid currentColor;margin-top:5px}
 .reife-dots{display:flex;gap:4px;margin-top:8px}
@@ -266,7 +270,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v24 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v25 · Dashboard v6
 </div>
 
 <script>
@@ -766,9 +770,26 @@ async function researchProject(idx){
         +'</div>';
     }).join('');
 
-    var quellenHtml=(d.quellen||[]).map(function(q){
-      return q.url&&q.url.indexOf('http')===0?'<a href="'+esc(q.url)+'" target="_blank">'+esc(q.label||q.url)+'</a>':'';
-    }).join('');
+    // Quellen: technisch gesammelte, sortierte Struktur (mit Fallback auf alte Liste)
+    var quellenHtml='';
+    if(d._quellen){
+      var qp=d._quellen.projekt||[];
+      var qb=d._quellen.beteiligte||[];
+      if(qp.length){
+        quellenHtml+='<div class="q-grp"><div class="q-grp-t">Projektquellen</div>';
+        qp.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(q.label||q.url)+'</a>'; });
+        quellenHtml+='</div>';
+      }
+      qb.forEach(function(g){
+        quellenHtml+='<div class="q-grp"><div class="q-grp-t">'+esc(g.firma)+'</div>';
+        g.quellen.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(q.label||q.url)+'</a>'; });
+        quellenHtml+='</div>';
+      });
+    } else {
+      quellenHtml=(d.quellen||[]).map(function(q){
+        return q.url&&q.url.indexOf('http')===0?'<a href="'+esc(q.url)+'" target="_blank" class="q-link">'+esc(q.label||q.url)+'</a>':'';
+      }).join('');
+    }
 
     // Konflikt-Block: nur echte Widersprüche (beide Werte konkret)
     var konflikte=(d.konflikte||[]).filter(function(k){
@@ -856,7 +877,7 @@ async function researchProject(idx){
       +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
       +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
       +'</div>';
-    if(rbtn){ rbtn.disabled=false; rbtn.innerHTML='&#128269;&nbsp; Recherche erneut starten'; }
+    if(rbtn){ rbtn.style.display='none'; }
   }catch(e){
     container.innerHTML='<p style="color:var(--red);padding:12px">Fehler: '+esc(e.message)+'</p>';
     if(rbtn){ rbtn.disabled=false; rbtn.innerHTML='&#128269;&nbsp; Recherche starten'; }
