@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MYWORKSPACE Project Finder · Nutzungsstatistik</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f3ef;color:#222}
+.hdr{background:#333;padding:0 40px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.hdr-sub{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#CED994}
+.hdr-title{font-size:15px;font-weight:700;color:#fff;letter-spacing:.08em;text-transform:uppercase}
+.hdr-right{display:flex;align-items:center;gap:16px}
+.hdr-logout{font-size:11px;color:#888;background:none;border:1px solid #555;padding:6px 12px;border-radius:6px;cursor:pointer}
+.hdr-logout:hover{color:#fff;border-color:#888}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 24px}
+.anon-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#5a7a2a;background:#eef3e0;border:1px solid #d5e3b8;padding:6px 12px;border-radius:20px;margin-bottom:24px}
+.slider-row{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}
+.slider-btn{font-size:13px;padding:8px 16px;border:1px solid #d5d2c8;background:#fff;border-radius:8px;cursor:pointer;color:#555;transition:all .15s}
+.slider-btn:hover{border-color:#a5b87a}
+.slider-btn.active{background:#5a7a2a;color:#fff;border-color:#5a7a2a}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:32px}
+.kpi{background:#fff;border:1px solid #e5e2d8;border-radius:12px;padding:20px}
+.kpi-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#999;margin-bottom:8px}
+.kpi-value{font-size:32px;font-weight:700;color:#333;line-height:1}
+.kpi-sub{font-size:12px;color:#999;margin-top:4px}
+.card{background:#fff;border:1px solid #e5e2d8;border-radius:12px;padding:24px;margin-bottom:24px}
+.card-title{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#666;margin-bottom:20px}
+.chart-wrap{position:relative;height:300px}
+.overlay{position:fixed;inset:0;background:rgba(51,51,51,.97);z-index:1000;display:flex;align-items:center;justify-content:center}
+.login-box{background:#fff;border-radius:16px;padding:40px;width:340px;text-align:center}
+.login-title{font-size:13px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#CED994;margin-bottom:4px}
+.login-sub{font-size:18px;font-weight:700;color:#333;margin-bottom:24px}
+.login-box input{width:100%;padding:12px 14px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:12px;text-align:center}
+.login-box button{width:100%;padding:12px;background:#5a7a2a;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+.login-err{color:#c0392b;font-size:13px;margin-top:8px;min-height:18px}
+.loading{text-align:center;padding:60px;color:#999}
+.footer-note{font-size:11px;color:#aaa;text-align:center;margin-top:32px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-title">MYWORKSPACE</div>
+    <div class="login-sub">Nutzungsstatistik</div>
+    <input type="password" id="pwInput" placeholder="Passwort" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Anmelden</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-sub">MYWORKSPACE</div>
+    <div class="hdr-title">Project Finder · Nutzungsstatistik</div>
+  </div>
+  <div class="hdr-right">
+    <button class="hdr-logout" onclick="logout()">Abmelden</button>
+  </div>
+</div>
+
+<div class="wrap" id="content" style="display:none">
+  <div class="anon-badge">🔒 Anonyme Statistik · keine personenbezogenen Daten</div>
+
+  <div class="slider-row" id="sliderRow">
+    <button class="slider-btn" data-range="7">Letzte 7 Tage</button>
+    <button class="slider-btn" data-range="30">Letzte 30 Tage</button>
+    <button class="slider-btn" data-range="90">Letzte 3 Monate</button>
+    <button class="slider-btn active" data-range="all">Gesamt</button>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="card">
+    <div class="card-title" id="chartTitle">Aktivität im Zeitverlauf</div>
+    <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <div class="footer-note">
+    Alle Angaben sind anonymisierte Summen über das gesamte Team.<br>
+    Zählung ab Rollout (22.06.2026). Testläufe sind ausgeschlossen.
+  </div>
+</div>
+
+<div class="loading" id="loading" style="display:none">Daten werden geladen…</div>
+
+<script>
+var _pw = sessionStorage.getItem('statsPw') || '';
+var _tage = [];
+var _rollout = '';
+var _range = 'all';
+var _chart = null;
+
+async function doLogin(){
+  var pw = document.getElementById('pwInput').value.trim();
+  if(!pw) return;
+  _pw = pw;
+  await loadData(true);
+}
+
+function logout(){
+  sessionStorage.removeItem('statsPw');
+  _pw = '';
+  document.getElementById('content').style.display='none';
+  document.getElementById('loginOverlay').style.display='flex';
+}
+
+async function loadData(fromLogin){
+  document.getElementById('loginErr').textContent='';
+  try{
+    var resp = await fetch('/api/stats-data',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:_pw})
+    });
+    var data = await resp.json();
+    if(data.error){
+      document.getElementById('loginErr').textContent = data.error;
+      if(fromLogin) return;
+      logout(); return;
+    }
+    sessionStorage.setItem('statsPw', _pw);
+    _tage = data.tage || [];
+    _rollout = data.rollout || '';
+    document.getElementById('loginOverlay').style.display='none';
+    document.getElementById('content').style.display='block';
+    render();
+  }catch(e){
+    document.getElementById('loginErr').textContent = 'Fehler beim Laden.';
+  }
+}
+
+function filterByRange(){
+  if(_range==='all') return _tage.slice();
+  var days = parseInt(_range);
+  var cutoff = new Date();
+  cutoff.setDate(cutoff.getDate()-days);
+  return _tage.filter(function(t){
+    var p = t.datum.split('-');
+    var d = new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    return d >= cutoff;
+  });
+}
+
+function render(){
+  var tage = filterByRange();
+
+  // KPIs summieren
+  var logins=0,such=0,proj=0,firm=0,det=0;
+  tage.forEach(function(t){
+    logins+=t.logins; such+=t.suchlaeufe; proj+=t.projekte; firm+=t.firmen; det+=t.detailRecherchen;
+  });
+  var avgSuch = logins>0 ? (such/logins).toFixed(1) : '–';
+  var avgProj = such>0 ? (proj/such).toFixed(1) : '–';
+  var avgFirm = such>0 ? (firm/such).toFixed(1) : '–';
+  var detQuote = such>0 ? Math.round(det/such*100)+'%' : '–';
+
+  var kpis = [
+    {label:'Seitenaufrufe',value:logins,sub:'Logins gesamt'},
+    {label:'Suchläufe',value:such,sub:'Ø '+avgSuch+' pro Aufruf'},
+    {label:'Projekte gefunden',value:proj,sub:'Ø '+avgProj+' pro Suche'},
+    {label:'Firmen gefunden',value:firm,sub:'Ø '+avgFirm+' pro Suche'},
+    {label:'Detail-Recherchen',value:det,sub:detQuote+' der Suchläufe'}
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(function(k){
+    return '<div class="kpi"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';
+  }).join('');
+
+  drawChart(tage);
+}
+
+function bucketData(tage){
+  // Auflösung je nach Range: 7/30=Tag, 90=Woche, all=Monat
+  if(_range==='7' || _range==='30'){
+    return {
+      labels: tage.map(function(t){var p=t.datum.split('-');return p[2]+'.'+p[1]+'.';}),
+      such: tage.map(function(t){return t.suchlaeufe;}),
+      rolloutIdx: tage.findIndex(function(t){return t.datum===_rollout;})
+    };
+  }
+  if(_range==='90'){
+    // Wochenweise bucketen
+    var weeks={};
+    tage.forEach(function(t){
+      var p=t.datum.split('-');
+      var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+      var onejan=new Date(d.getFullYear(),0,1);
+      var wk=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
+      var key=d.getFullYear()+'-KW'+wk;
+      if(!weeks[key])weeks[key]={label:'KW'+wk,such:0};
+      weeks[key].such+=t.suchlaeufe;
+    });
+    var arr=Object.values(weeks);
+    return {labels:arr.map(function(w){return w.label;}),such:arr.map(function(w){return w.such;}),rolloutIdx:-1};
+  }
+  // all: monatsweise
+  var months={};
+  var mnames=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  tage.forEach(function(t){
+    var p=t.datum.split('-');
+    var key=p[0]+'-'+p[1];
+    if(!months[key])months[key]={label:mnames[parseInt(p[1])-1]+' '+p[0].slice(2),such:0};
+    months[key].such+=t.suchlaeufe;
+  });
+  var arr=Object.values(months);
+  return {labels:arr.map(function(m){return m.label;}),such:arr.map(function(m){return m.such;}),rolloutIdx:-1};
+}
+
+function drawChart(tage){
+  var b = bucketData(tage);
+  var titles={'7':'Suchläufe pro Tag (letzte 7 Tage)','30':'Suchläufe pro Tag (letzte 30 Tage)','90':'Suchläufe pro Woche (letzte 3 Monate)','all':'Suchläufe pro Monat (gesamt)'};
+  document.getElementById('chartTitle').textContent = titles[_range];
+
+  if(_chart) _chart.destroy();
+  var ctx = document.getElementById('trendChart').getContext('2d');
+
+  var annotations = [];
+  var rolloutIdx = b.rolloutIdx;
+
+  _chart = new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:b.labels,
+      datasets:[{
+        label:'Suchläufe',
+        data:b.such,
+        borderColor:'#5a7a2a',
+        backgroundColor:'rgba(90,122,42,.08)',
+        borderWidth:2,
+        fill:true,
+        tension:.3,
+        pointRadius:3,
+        pointBackgroundColor:'#5a7a2a'
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#333',padding:10,titleFont:{size:13},bodyFont:{size:13}}
+      },
+      scales:{
+        y:{beginAtZero:true,ticks:{precision:0,color:'#999'},grid:{color:'#f0efe9'}},
+        x:{ticks:{color:'#999',maxRotation:45,minRotation:0},grid:{display:false}}
+      }
+    },
+    plugins:[{
+      id:'rolloutMarker',
+      afterDraw:function(chart){
+        if(rolloutIdx<0) return;
+        var xAxis=chart.scales.x, yAxis=chart.scales.y;
+        var x=xAxis.getPixelForValue(rolloutIdx);
+        var ctx2=chart.ctx;
+        ctx2.save();
+        ctx2.beginPath();
+        ctx2.moveTo(x,yAxis.top);
+        ctx2.lineTo(x,yAxis.bottom);
+        ctx2.lineWidth=2;
+        ctx2.strokeStyle='#c0873a';
+        ctx2.setLineDash([5,4]);
+        ctx2.stroke();
+        ctx2.setLineDash([]);
+        ctx2.fillStyle='#c0873a';
+        ctx2.font='bold 10px sans-serif';
+        ctx2.textAlign='center';
+        ctx2.fillText('Rollout',x,yAxis.top-4);
+        ctx2.restore();
+      }
+    }]
+  });
+}
+
+document.querySelectorAll('.slider-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.slider-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    _range = btn.dataset.range;
+    render();
+  });
+});
+
+// Auto-Login wenn Passwort im Session-Storage
+if(_pw){ loadData(false); }
+</script>
+</body>
+</html>
