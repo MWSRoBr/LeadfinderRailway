@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v24';
+const SERVER_VERSION = 'v26';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -710,6 +710,17 @@ app.post('/api/project-research', async (req, res) => {
       scrapedContent = await firecrawlScrape(quelleUrl);
     }
 
+    // Quellen technisch einsammeln (nicht Sonnet überlassen)
+    const quellenSammlung = { projekt: [], beteiligte: {} };
+    if (quelleUrl && quelleUrl.startsWith('http')) {
+      quellenSammlung.projekt.push({ label: 'Projektquelle', url: quelleUrl });
+    }
+    searchResults.forEach(arr => {
+      if (Array.isArray(arr)) arr.forEach(r => {
+        if (r.url && r.url.startsWith('http')) quellenSammlung.projekt.push({ label: r.title || r.url, url: r.url });
+      });
+    });
+
     const searchText = searchResults.map(arr => Array.isArray(arr)
       ? arr.map(r => `[${r.title||''}](${r.url||''})\n${r.description||''}`).join('\n\n')
       : arr).join('\n\n===\n\n');
@@ -748,7 +759,7 @@ app.post('/api/project-research', async (req, res) => {
 
       const beteiligte = await Promise.all(zuRecherchieren.map(async (a) => {
         const firma = a.firma;
-        const result = { rolle: a.rolle, firma: firma, projektkontaktName: a.name || '', firmendaten: null, ansprechpartner: [] };
+        const result = { rolle: a.rolle, firma: firma, projektkontaktName: a.name || '', firmendaten: null, ansprechpartner: [], quellen: [] };
         try {
           // Parallel: Impressum-Suche + Team-Suche
           const [impRes, teamRes] = await Promise.all([
@@ -758,11 +769,11 @@ app.post('/api/project-research', async (req, res) => {
           // Impressum scrapen
           const impHit = (impRes||[]).find(r => r.url && /impressum|imprint/i.test(r.url)) || (impRes||[])[0];
           let impScrape = '';
-          if (impHit && impHit.url) impScrape = await firecrawlScrape(impHit.url, 8000).catch(() => '');
+          if (impHit && impHit.url) { impScrape = await firecrawlScrape(impHit.url, 8000).catch(() => ''); result.quellen.push({ label: 'Impressum', url: impHit.url }); }
           // Team-Seite scrapen (nur wenn es einen projektbezogenen Namen gibt zum Anreichern)
           const teamHit = (teamRes||[]).find(r => r.url && /team|kontakt|ansprechpartner|ueber-uns|about/i.test(r.url)) || (teamRes||[])[0];
           let teamScrape = '';
-          if (a.name && teamHit && teamHit.url) teamScrape = await firecrawlScrape(teamHit.url, 12000).catch(() => '');
+          if (a.name && teamHit && teamHit.url) { teamScrape = await firecrawlScrape(teamHit.url, 12000).catch(() => ''); result.quellen.push({ label: 'Team-/Kontaktseite', url: teamHit.url }); }
 
           // Sonnet: Impressum-Firmendaten + Namen-Anreicherung, STRIKT getrennt
           const exText = await claudeSonnet(apiKey,
@@ -784,7 +795,16 @@ app.post('/api/project-research', async (req, res) => {
       }));
 
       parsed.beteiligte = beteiligte;
+      beteiligte.forEach(b => { if (b.quellen && b.quellen.length) quellenSammlung.beteiligte[b.firma] = b.quellen; });
     }
+
+    // Quellen dedupliziert und sortiert ans Ergebnis hängen
+    const gesehenUrls = new Set();
+    const dedupe = (arr) => arr.filter(q => { if (!q.url || gesehenUrls.has(q.url)) return false; gesehenUrls.add(q.url); return true; });
+    parsed._quellen = {
+      projekt: dedupe(quellenSammlung.projekt),
+      beteiligte: Object.keys(quellenSammlung.beteiligte).map(firma => ({ firma, quellen: dedupe(quellenSammlung.beteiligte[firma]) })).filter(g => g.quellen.length)
+    };
 
     return res.json({ _data: parsed });
 
@@ -838,6 +858,71 @@ app.post('/api/dashboard-data', async (req, res) => {
     const data = await resp.json();
     const rows = (data.values || []).slice(1); // skip header
     return res.json({ rows });
+  } catch(e) {
+    return res.json({ error: e.message });
+  }
+});
+
+// ── ANONYMES STATS-DASHBOARD ──────────────────────────────────
+const ROLLOUT_DATE = new Date(2026, 5, 22); // 22.06.2026
+const TEST_USERS = ['Robin', 'Walter', 'Michael']; // Testläufe, aus Statistik ausgeschlossen
+
+app.get('/stats', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'stats.html'));
+});
+
+app.post('/api/stats-data', async (req, res) => {
+  const { password } = req.body;
+  if (!DASHBOARD_USERS.includes(password)) return res.json({ error: 'Kein Zugang.' });
+  if (!SHEET_ID || !SERVICE_ACCOUNT) return res.json({ error: 'Google Sheets nicht konfiguriert.' });
+  try {
+    const token = await getGoogleToken();
+    if (!token) return res.json({ error: 'Google Auth fehlgeschlagen.' });
+    const resp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:I`,
+      { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    const data = await resp.json();
+    const rows = (data.values || []).slice(1);
+
+    // Parse Datum (Spalte A, Format TT.MM.JJJJ)
+    const parseDate = (s) => {
+      if (!s) return null;
+      const p = s.split('.');
+      if (p.length < 3) return null;
+      return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+    };
+
+    // Filter: ab Rollout + Testnutzer raus
+    const gefiltert = rows.filter(r => {
+      const d = parseDate(r[0]);
+      if (!d || d < ROLLOUT_DATE) return false;
+      const nutzer = (r[2] || '').trim();
+      if (TEST_USERS.includes(nutzer)) return false;
+      return true;
+    });
+
+    // Anonyme Tages-Aggregation: nur Summen, keine Namen
+    // Struktur pro Tag: { datum, logins, suchlaeufe, projekte, firmen, detailRecherchen }
+    const perDay = {};
+    const dayKey = (d) => d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+    gefiltert.forEach(r => {
+      const d = parseDate(r[0]);
+      if (!d) return;
+      const k = dayKey(d);
+      if (!perDay[k]) perDay[k] = { datum: k, logins: 0, suchlaeufe: 0, projekte: 0, firmen: 0, detailRecherchen: 0 };
+      const aktion = r[4] || '';
+      if (aktion === 'Login') perDay[k].logins++;
+      else if (aktion === 'Suchlauf') {
+        perDay[k].suchlaeufe++;
+        const pj = parseInt(r[5]); if (!isNaN(pj)) perDay[k].projekte += pj;
+        const fi = parseInt(r[6]); if (!isNaN(fi)) perDay[k].firmen += fi;
+      }
+      else if (aktion === 'Web-Recherche' || aktion === 'Firmenprofil') perDay[k].detailRecherchen++;
+    });
+
+    const tage = Object.values(perDay).sort((a,b) => a.datum.localeCompare(b.datum));
+    return res.json({ tage, rollout: dayKey(ROLLOUT_DATE) });
   } catch(e) {
     return res.json({ error: e.message });
   }
