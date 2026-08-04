@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v26';
+const SERVER_VERSION = 'v27';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -790,12 +790,52 @@ app.post('/api/project-research', async (req, res) => {
             result.firmendaten = ed.firmendaten || null;
             result.ansprechpartner = Array.isArray(ed.ansprechpartner) ? ed.ansprechpartner : [];
           }
+          // LinkedIn-Icon: pro Ansprechpartner mit Namen eine Suche, nur echtes /in/-Profil zeigen
+          await Promise.all((result.ansprechpartner||[]).map(async (ap) => {
+            if (!ap.name) return;
+            try {
+              const li = await braveSearch(`"${ap.name}" ${firma} LinkedIn`, 2).catch(() => []);
+              const hit = (li||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
+              if (hit) ap.linkedin = hit.url;
+            } catch(e) {}
+          }));
         } catch(e) { console.log('Beteiligten-Recherche fehlgeschlagen für', firma, e.message); }
         return result;
       }));
 
       parsed.beteiligte = beteiligte;
       beteiligte.forEach(b => { if (b.quellen && b.quellen.length) quellenSammlung.beteiligte[b.firma] = b.quellen; });
+    }
+
+    // ── ETAPPE 2B: Facility Manager beim Nutzer/Bauherrn suchen (ein Treffer) ──
+    if (parsed) {
+      // Nutzer bevorzugt (Mieter-Rolle), sonst Bauherr
+      let zielFirma = '';
+      if (Array.isArray(parsed.ansprechpartner)) {
+        const mieter = parsed.ansprechpartner.find(a => /mieter|nutzer/i.test(a.rolle||'') && a.firma);
+        if (mieter) zielFirma = mieter.firma;
+        if (!zielFirma) {
+          const bauherr = parsed.ansprechpartner.find(a => /bauherr/i.test(a.rolle||'') && a.firma);
+          if (bauherr) zielFirma = bauherr.firma;
+        }
+      }
+      if (zielFirma) {
+        try {
+          const fmRes = await braveSearch(`"${zielFirma}" Facility Manager`, 3).catch(() => []);
+          // Bevorzugt echtes LinkedIn-Profil, sonst ersten plausiblen Treffer
+          const fmLinkedIn = (fmRes||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
+          const fmHit = fmLinkedIn || (fmRes||[])[0];
+          if (fmHit) {
+            parsed.facilityManager = {
+              firma: zielFirma,
+              treffer: fmHit.title || '',
+              beschreibung: fmHit.description || '',
+              url: fmHit.url || '',
+              istLinkedIn: !!fmLinkedIn
+            };
+          }
+        } catch(e) { console.log('FM-Suche fehlgeschlagen:', e.message); }
+      }
     }
 
     // Quellen dedupliziert und sortiert ans Ergebnis hängen
