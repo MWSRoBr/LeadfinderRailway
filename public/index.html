@@ -149,6 +149,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .bt-ap-name{font-size:13px;font-weight:600;color:var(--text-dark)}
 .bt-ap-fn{font-weight:400;color:var(--text-muted);font-size:12px}
 .bt-ap-kontakt{font-size:12px;color:var(--text-mid);margin-top:2px}
+.li-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#0a66c2;color:#fff;font-size:9px;font-weight:700;border-radius:3px;text-decoration:none;vertical-align:middle;margin-left:4px;font-family:sans-serif}
+.li-icon:hover{background:#004182}
 .q-grp{margin-bottom:10px}
 .q-grp-t{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
 .q-link{display:block;font-size:12px;color:var(--green);text-decoration:none;padding:2px 0;word-break:break-all}
@@ -270,7 +272,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v25 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v26 · Dashboard v6
 </div>
 
 <script>
@@ -842,7 +844,7 @@ async function researchProject(idx){
         aps.forEach(function(ap){
           if(!ap.name) return;
           apRows+='<div class="bt-ap">'
-            +'<div class="bt-ap-name">'+esc(ap.name)+(ap.funktion?' <span class="bt-ap-fn">· '+esc(ap.funktion)+'</span>':'')+'</div>'
+            +'<div class="bt-ap-name">'+esc(ap.name)+(ap.funktion?' <span class="bt-ap-fn">· '+esc(ap.funktion)+'</span>':'')+(ap.linkedin?' <a href="'+esc(ap.linkedin)+'" target="_blank" rel="noopener" class="li-icon" title="LinkedIn-Profil (bitte prüfen)">in</a>':'')+'</div>'
             +((ap.telefon||ap.email)?'<div class="bt-ap-kontakt">'+[ap.telefon?esc(ap.telefon):'',ap.email?esc(ap.email):''].filter(Boolean).join(' · ')+'</div>':'')
             +'</div>';
         });
@@ -861,19 +863,31 @@ async function researchProject(idx){
       }
     }
 
+    // Helfer: sc-card nur wenn Wert vorhanden (leere Felder ausblenden)
+    var leerWert=function(v){return !v||v==='–'||v==='unbekannt'||v==='nicht öffentlich'||v==='nicht oeffentlich';};
+    var scCard=function(label,wert){return leerWert(wert)?'':'<div class="sc-card"><div class="sc-card-lbl">'+esc(label)+'</div><p>'+esc(wert)+'</p></div>';};
+    var projFakten=scCard('Investitionsvolumen',d.investitionsvolumen)+scCard('Gesamtfläche',d.gesamtflaeche)+scCard('Baustart',d.baustart)+scCard('Fertigstellung',d.fertigstellung)+scCard('Baugenehmigung',d.baugenehmigung)+scCard('Ausschreibung',d.ausschreibungsstatus);
+
+    // Facility-Manager-Block (nur wenn Treffer)
+    var fmHtml='';
+    if(d.facilityManager && d.facilityManager.url){
+      var fm=d.facilityManager;
+      fmHtml='<div class="sc-lbl" style="margin-bottom:8px">Facility Management ('+esc(fm.firma)+')</div>'
+        +'<div class="bt-hint">Automatischer Suchtreffer – nicht verifiziert. Bitte vor Kontaktaufnahme prüfen.</div>'
+        +'<div class="bt-firma"><div class="bt-ap"><div class="bt-ap-name">'+esc(fm.treffer||fm.firma)
+        +(fm.istLinkedIn?' <a href="'+esc(fm.url)+'" target="_blank" rel="noopener" class="li-icon" title="LinkedIn-Profil (bitte prüfen)">in</a>':'')+'</div>'
+        +(fm.beschreibung?'<div class="bt-ap-kontakt">'+esc(fm.beschreibung)+'</div>':'')
+        +'<div class="bt-ap-kontakt"><a href="'+esc(fm.url)+'" target="_blank" rel="noopener" style="color:var(--green)">Quelle öffnen</a></div>'
+        +'</div></div>';
+    }
+
     container.innerHTML=
       '<div style="margin-top:4px"><div class="sc-lbl" style="margin-bottom:12px">Recherche-Ergebnisse</div>'
       +konflikteHtml
-      +'<div class="sc-grid" style="margin-bottom:16px">'
-      +'<div class="sc-card"><div class="sc-card-lbl">Investitionsvolumen</div><p>'+esc(d.investitionsvolumen||'–')+'</p></div>'
-      +'<div class="sc-card"><div class="sc-card-lbl">Gesamtfläche</div><p>'+esc(d.gesamtflaeche||'–')+'</p></div>'
-      +'<div class="sc-card"><div class="sc-card-lbl">Baustart</div><p>'+esc(d.baustart||'–')+'</p></div>'
-      +'<div class="sc-card"><div class="sc-card-lbl">Fertigstellung</div><p>'+esc(d.fertigstellung||'–')+'</p></div>'
-      +'<div class="sc-card"><div class="sc-card-lbl">Baugenehmigung</div><p>'+esc(d.baugenehmigung||'–')+'</p></div>'
-      +'<div class="sc-card"><div class="sc-card-lbl">Ausschreibung</div><p>'+esc(d.ausschreibungsstatus||'–')+'</p></div>'
-      +'</div>'
+      +(projFakten?'<div class="sc-grid" style="margin-bottom:16px">'+projFakten+'</div>':'')
       +(kontakteHtml?'<div class="sc-lbl" style="margin-bottom:8px">Ansprechpartner</div><div class="proj-popup-contacts" style="margin-bottom:16px">'+kontakteHtml+'</div>':'')
       +beteiligteHtml
+      +fmHtml
       +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
       +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
       +'</div>';
