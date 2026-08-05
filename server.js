@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v30';
+const SERVER_VERSION = 'v31';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -844,11 +844,13 @@ app.post('/api/project-research', async (req, res) => {
       if (zielFirma) {
         try {
           const fmRes = await braveSearch(`${zielFirma} Facility Manager LinkedIn`, 4).catch(() => []);
-          // NUR echtes LinkedIn-Personenprofil, das zur Firma passt – sonst nichts anzeigen
+          // NUR echtes LinkedIn-Profil, das zur Firma passt UND einen echten Facility-Bezug im Titel hat.
+          // Asset Manager, Sales o.ä. werden ausgeschlossen – für Möblierung ist der Facility Manager relevant.
+          const fmFunktion = /facility|gebäudemanagement|gebaeudemanagement|geb[aä]udetechnik|head of workplace|workplace manager|real estate manager|leiter geb|leitung geb|hausverwaltung|objektmanagement|objektleitung/i;
           const fmHit = (fmRes||[]).find(r => {
             if (!r.url || !/linkedin\.com\/in\//i.test(r.url)) return false;
             const profilText = (r.title||'') + ' ' + (r.description||'');
-            return firmaPasst(zielFirma, profilText);
+            return firmaPasst(zielFirma, profilText) && fmFunktion.test(profilText);
           });
           if (fmHit) {
             parsed.facilityManager = {
