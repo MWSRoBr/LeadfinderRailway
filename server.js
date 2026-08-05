@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v28d';
+const SERVER_VERSION = 'v29d';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -794,7 +794,8 @@ app.post('/api/project-research', async (req, res) => {
           await Promise.all((result.ansprechpartner||[]).map(async (ap) => {
             if (!ap.name) return;
             try {
-              const li = await braveSearch(`"${ap.name}" ${firma} LinkedIn`, 4).catch(() => []);
+              const suchbegriff = [ap.name, ap.funktion||'', 'LinkedIn'].filter(Boolean).join(' ');
+              const li = await braveSearch(suchbegriff, 4).catch(() => []);
               const urls = (li||[]).map(r => r.url).filter(Boolean);
               console.log('[LINKEDIN]', ap.name, '@', firma, '| Treffer-URLs:', JSON.stringify(urls));
               const hit = (li||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
