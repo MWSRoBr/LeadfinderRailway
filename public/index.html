@@ -151,6 +151,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .bt-ap-kontakt{font-size:12px;color:var(--text-mid);margin-top:2px}
 .li-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#0a66c2;color:#fff;font-size:9px;font-weight:700;border-radius:3px;text-decoration:none;vertical-align:middle;margin-left:4px;font-family:sans-serif}
 .li-icon:hover{background:#004182}
+.bt-ap-herkunft{font-size:10px;color:var(--text-muted);margin-top:3px;font-style:italic}
 .q-grp{margin-bottom:10px}
 .q-grp-t{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px}
 .q-link{display:block;font-size:12px;color:var(--green);text-decoration:none;padding:2px 0;word-break:break-all}
@@ -272,7 +273,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v26 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v27 · Dashboard v6
 </div>
 
 <script>
@@ -759,7 +760,7 @@ async function researchProject(idx){
         +(k.adresse&&k.adresse!=='unbekannt'?'<br>'+esc(k.adresse):'')
         +(k.telefon&&k.telefon!=='unbekannt'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
         +(k.email&&k.email!=='unbekannt'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
-        +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank">Website</a>':'')
+        +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank" rel="noopener" style="color:var(--text-muted);font-size:11px">Firmen-Website</a>':'')
         +'</p></div>';
     }).join('');
 
@@ -843,9 +844,11 @@ async function researchProject(idx){
         var apRows='';
         aps.forEach(function(ap){
           if(!ap.name) return;
+          var bestaetigt = ap.aufSeiteGefunden===true;
           apRows+='<div class="bt-ap">'
             +'<div class="bt-ap-name">'+esc(ap.name)+(ap.funktion?' <span class="bt-ap-fn">· '+esc(ap.funktion)+'</span>':'')+(ap.linkedin?' <a href="'+esc(ap.linkedin)+'" target="_blank" rel="noopener" class="li-icon" title="LinkedIn-Profil (bitte prüfen)">in</a>':'')+'</div>'
-            +((ap.telefon||ap.email)?'<div class="bt-ap-kontakt">'+[ap.telefon?esc(ap.telefon):'',ap.email?esc(ap.email):''].filter(Boolean).join(' · ')+'</div>':'')
+            +(bestaetigt&&(ap.telefon||ap.email)?'<div class="bt-ap-kontakt">'+[ap.telefon?esc(ap.telefon):'',ap.email?esc(ap.email):''].filter(Boolean).join(' · ')+'</div>':'')
+            +'<div class="bt-ap-herkunft">'+(bestaetigt?'auf Firmenseite bestätigt':'aus Projektkontext – nicht auf Firmenseite bestätigt')+'</div>'
             +'</div>';
         });
         if(hatFirmendaten||apRows){
