@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v31';
+const SERVER_VERSION = 'v32';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
