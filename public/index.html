@@ -273,7 +273,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v31 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v33 · Dashboard v6
 </div>
 
 <script>
@@ -559,7 +559,6 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     var sorted=hoch.concat(leads.filter(function(l){return(l.prioritaet||'').toLowerCase()!=='hoch';}));
     window._leads=sorted;
     html+='<div class="block-section"><div class="block-head"><div class="block-title">Wachsende Unternehmen in deiner Region</div><div class="block-meta">'+sorted.length+' Ergebnis'+(sorted.length===1?'':'se')+' &nbsp;&middot;&nbsp; '+hoch.length+' Hoch</div></div>';
-    html+='<div class="leads-bar"><div></div><button class="btn-pdf" onclick="printResults()">&#8595; Als PDF speichern</button></div>';
     sorted.forEach(function(l,idx){
       if(currentStrictness==='breit') l._unsicher=true;
       var prio=(l.prioritaet||'').toLowerCase()==='hoch'?'hoch':'mittel';
@@ -578,49 +577,15 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
     html+='</div>';
   }
 
+  // Gesamt-PDF-Button ganz unten (nur wenn Ergebnisse vorhanden)
+  if((projects&&projects.length)||(leads&&leads.length)){
+    html+='<div style="text-align:center;margin:32px 0 8px"><button class="btn-pdf" onclick="printResults()">&#8595;&nbsp; Alles als PDF speichern</button></div>';
+  }
+
   el.innerHTML=html;
 }
 
 // Project popup - no new search, just display existing data
-function openProjProfil(idx){
-  var p=window._projects[idx]; if(!p) return;
-  document.getElementById('modalTitle').textContent=(p.projektname||'Projekt')+' – Vollständige Infos';
-
-  var kontakte=(p.kontakte||[]).slice().sort(function(a,b){return rolePrio(a.rolle)-rolePrio(b.rolle);});
-  var kontakteHtml=kontakte.map(function(k,ci){
-    var prio=ci===0?'prio1':ci===1?'prio2':'prio3';
-    return '<div class="proj-popup-contact '+prio+'"><div class="proj-popup-role">'+esc(k.rolle||'Kontakt')+'</div><p>'
-      +'<strong>'+esc(k.firma||'–')+'</strong>'
-      +(k.ansprechpartner&&k.ansprechpartner!=='...'&&k.ansprechpartner!=='unbekannt'?'<br>'+esc(k.ansprechpartner):'')
-      +(k.adresse&&k.adresse!=='...'&&k.adresse!=='unbekannt'?'<br>'+esc(k.adresse):'')
-      +(k.telefon&&k.telefon!=='...'&&k.telefon!=='-'&&k.telefon!=='unbekannt'?'<br><a href="tel:'+esc(k.telefon)+'">'+esc(k.telefon)+'</a>':'')
-      +(k.email&&k.email!=='...'&&k.email!=='-'&&k.email!=='unbekannt'?'<br><a href="mailto:'+esc(k.email)+'">'+esc(k.email)+'</a>':'')
-      +(k.url&&k.url.indexOf('http')===0?'<br><a href="'+esc(k.url)+'" target="_blank">'+esc(k.url.replace(/^https?:\/\//,'').split('/')[0])+'</a>':'')
-      +'</p></div>';
-  }).join('');
-
-  document.getElementById('modalBody').innerHTML=
-    '<div class="m-disclaimer">&#9888;&nbsp;<strong>KI-generierte Daten – bitte alle Angaben vor Verwendung selbst prüfen.</strong></div>'
-    +'<div class="sc-sec"><div class="sc-lbl">Projektdetails</div><div class="sc-grid">'
-    +'<div class="sc-card"><div class="sc-card-lbl">Standort</div><p>'+esc(p.standort||'–')+(p.plz?' &nbsp;'+esc(p.plz):'')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Bürofläche</div><p>'+esc(p.bueroflaeche||'–')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Arbeitsplätze</div><p>'+esc(p.arbeitsplaetze||'–')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Fertigstellung</div><p>'+esc(p.fertigstellung||'–')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Projekttyp</div><p>'+esc(p.projekttyp||'–')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Ausschreibung</div><p>'+esc(p.ausschreibungsstatus||'–')+'</p></div>'
-    +'<div class="sc-card"><div class="sc-card-lbl">Möbelbedarf</div><p>'+esc(p.moebelbedarfEinschaetzung||'–')+'</p></div>'
-    +'</div></div>'
-    +(p.beschreibung?'<div class="sc-sec"><div class="sc-lbl">Beschreibung</div><p style="font-size:13px;color:var(--text-mid);line-height:1.7">'+esc(p.beschreibung)+'</p></div>':'')
-    +'<div class="sc-sec"><div class="sc-lbl">Ansprechpartner (Priorität: Innenarchitekt → Mieter → Auftraggeber)</div><div class="proj-popup-contacts">'+kontakteHtml+'</div></div>'
-    +(p.quelleUrl&&p.quelleUrl.indexOf('http')===0?'<div class="sc-sec"><div class="sc-lbl">Quelle</div><div class="quellen-list"><a href="'+esc(p.quelleUrl)+'" target="_blank">'+esc(p.quelleUrl)+'</a></div></div>':'')
-    +'<div style="margin-top:20px;padding-top:16px;border-top:1.5px solid var(--border)">'
-    +'<button class="btn-primary" style="width:100%;padding:14px" onclick="researchProject('+idx+')">&#128269;&nbsp; Vollständige Web-Recherche zu diesem Projekt</button>'
-    +'<div id="proj-research-'+idx+'"></div>'
-    +'</div>';
-
-  document.getElementById('modalOverlay').classList.add('active');
-}
-
 // Firma popup
 async function openFirmenProfil(idx){
   var lead=window._leads[idx]; if(!lead) return;
@@ -706,6 +671,72 @@ function printModal(){
   var w=window.open('','_blank');
   w.document.write('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>'+t+'</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Calibri,sans-serif;font-size:11px;padding:24px 32px;max-width:900px;margin:0 auto}.sc-sec{margin-bottom:18px}.sc-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:10px}.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sc-card{background:#f5f5f5;border-radius:4px;padding:10px 12px}.sc-card-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#2d6a3e;margin-bottom:3px}.sc-card p{font-size:10px;color:#444;line-height:1.4}.sc-badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:3px;border:1px solid currentColor;margin-top:4px}.reife-dots{display:flex;gap:3px;margin-top:5px}.reife-dot{width:18px;height:4px;border-radius:2px;background:#ddd}.reife-dot.on{background:#111}.presse-item{border-left:2px solid #ddd;padding:6px 10px;margin-bottom:6px}.baustein{background:#fffef5;border:1px solid #e8d890;border-radius:4px;padding:10px 14px;margin-bottom:8px}.baustein-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#b89a00;margin-bottom:4px}.baustein p{font-size:11px;color:#555;font-style:italic;line-height:1.5}.quellen-list a{font-size:10px;color:#2d6a3e;display:block;margin-bottom:2px}.m-disclaimer{background:#fffbe6;border-left:4px solid #c8a800;padding:10px 14px;font-size:10px;color:#5a4a00;margin-bottom:16px}.btn-copy{display:none}.proj-popup-contact{border-left:3px solid #CED994;padding:8px 12px;margin-bottom:8px}.proj-popup-role{font-size:9px;font-weight:700;text-transform:uppercase;color:#3d6b1a;margin-bottom:4px}.proj-popup-contact p{font-size:11px;color:#444;line-height:1.5}h1{font-size:18px;font-weight:400;font-family:Georgia,serif;font-style:italic;margin-bottom:4px}.meta{font-size:9px;color:#888;margin-bottom:18px}</style></head><body><h1>'+t+'</h1><div class="meta">MYWORKSPACE &middot; '+new Date().toLocaleDateString('de-DE')+'</div>'+b+'</body></html>');
   w.document.close(); w.print();
+}
+
+function printProjectResearch(idx){
+  var p = (window._projects||[])[idx];
+  var researchEl = document.getElementById('proj-research-'+idx);
+  if(!p || !researchEl) return;
+  // Logo aus dem Header-DOM ziehen (bereits als base64 vorhanden)
+  var logoImg = document.querySelector('.tool-header img') || document.querySelector('img[alt="Logo"]');
+  var logoSrc = logoImg ? logoImg.src : '';
+  // Recherche-Inhalt ohne den PDF-Button selbst
+  var researchClone = researchEl.cloneNode(true);
+  researchClone.querySelectorAll('button, .btn-pdf').forEach(function(b){ b.remove(); });
+  var researchHtml = researchClone.innerHTML;
+  // Kopf-Fakten des Projekts
+  var kopf = '<div class="pdf-facts">'
+    +'<div><span class="pf-l">'+esc(p.zeitpunkt_typ||'Fertigstellung')+'</span><span class="pf-v">'+esc(p.zeitpunkt||p.fertigstellung||'unbekannt')+'</span></div>'
+    +(p.bueroflaeche?'<div><span class="pf-l">Bürofläche</span><span class="pf-v">'+esc(p.bueroflaeche)+'</span></div>':'')
+    +(p.arbeitsplaetze?'<div><span class="pf-l">Arbeitsplätze</span><span class="pf-v">'+esc(p.arbeitsplaetze)+'</span></div>':'')
+    +(p.standort?'<div><span class="pf-l">Standort</span><span class="pf-v">'+esc((p.standort||'').split(',')[0])+'</span></div>':'')
+    +'</div>';
+  var heute = new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric'});
+  var w = window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>'+esc(p.projektname||'Projekt')+' – MYWORKSPACE</title>'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:"DM Sans",Calibri,sans-serif;font-size:12px;color:#1a1a1a;padding:32px 40px;max-width:850px;margin:0 auto;line-height:1.5}'
+    +'.pdf-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #3d6b1a;padding-bottom:14px;margin-bottom:20px}'
+    +'.pdf-head img{height:40px;width:auto}'
+    +'.pdf-head .datum{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.08em}'
+    +'h1{font-size:22px;font-weight:400;font-family:Georgia,serif;margin-bottom:4px;color:#1a1a1a}'
+    +'.bauherr{font-size:12px;color:#666;margin-bottom:18px}'
+    +'.pdf-facts{display:flex;gap:24px;flex-wrap:wrap;background:#f7f6f2;border-radius:8px;padding:14px 18px;margin-bottom:20px}'
+    +'.pdf-facts .pf-l{display:block;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3d6b1a;margin-bottom:2px}'
+    +'.pdf-facts .pf-v{display:block;font-size:14px;font-weight:600}'
+    +'.ki-hinweis{background:#fffbe6;border-left:4px solid #c8a800;padding:10px 14px;font-size:10px;color:#5a4a00;margin-bottom:20px;border-radius:0 4px 4px 0}'
+    +'.sc-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#888;border-bottom:1px solid #e5e5e5;padding-bottom:4px;margin:16px 0 10px}'
+    +'.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}'
+    +'.sc-card{background:#f5f5f5;border-radius:4px;padding:10px 12px}'
+    +'.sc-card-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:#2d6a3e;margin-bottom:3px}'
+    +'.sc-card p{font-size:11px;color:#444}'
+    +'.bt-firma{border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin-bottom:10px;page-break-inside:avoid}'
+    +'.bt-firma-head{font-size:13px;font-weight:600;margin-bottom:8px}'
+    +'.bt-rolle{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;color:#3d6b1a;background:#eef3e6;padding:2px 7px;border-radius:10px;margin-right:4px}'
+    +'.bt-sub{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#999;margin:10px 0 5px}'
+    +'.bt-row{display:flex;gap:10px;font-size:12px;padding:2px 0}'
+    +'.bt-k{flex:0 0 110px;color:#999}.bt-v{flex:1}'
+    +'.bt-ap{padding:6px 0;border-bottom:1px solid #f2f0ea}'
+    +'.bt-ap-name{font-size:13px;font-weight:600}.bt-ap-fn{font-weight:400;color:#999;font-size:12px}'
+    +'.bt-ap-kontakt{font-size:12px;color:#555;margin-top:2px}.bt-ap-herkunft{font-size:10px;color:#999;font-style:italic;margin-top:3px}'
+    +'.bt-hint,.q-grp{margin-bottom:10px}.bt-hint{font-size:10px;color:#888;background:#faf9f6;border-left:2px solid #d4cfc4;padding:7px 10px;border-radius:0 4px 4px 0}'
+    +'.q-grp-t{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#999;margin-bottom:4px}'
+    +'.q-link{display:block;font-size:11px;color:#2d6a3e;padding:2px 0;word-break:break-all}'
+    +'.li-icon{display:inline-block;width:15px;height:15px;background:#0a66c2;color:#fff;font-size:8px;font-weight:700;text-align:center;line-height:15px;border-radius:3px;text-decoration:none;margin-left:4px}'
+    +'a{color:#2d6a3e}'
+    +'@media print{body{padding:16px}.bt-firma{page-break-inside:avoid}}'
+    +'</style></head><body>'
+    +'<div class="pdf-head">'+(logoSrc?'<img src="'+logoSrc+'" alt="MYWORKSPACE">':'<strong>MYWORKSPACE</strong>')+'<span class="datum">Erstellt am '+heute+'</span></div>'
+    +'<h1>'+esc(p.projektname||'Projekt')+'</h1>'
+    +(p.bauherr?'<div class="bauherr">'+esc(p.bauherr)+'</div>':'')
+    +kopf
+    +'<div class="ki-hinweis"><strong>KI-generierte Recherche.</strong> Diese Zusammenstellung wurde automatisch erzeugt und kann Fehler oder veraltete Angaben enthalten. Bitte alle Quellen vor dem Kundenkontakt selbst prüfen.</div>'
+    +researchHtml
+    +'</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){ w.print(); }, 400);
 }
 
 function printResults(){
@@ -905,6 +936,7 @@ async function researchProject(idx){
       +fmHtml
       +(newsHtml?'<div class="sc-lbl" style="margin-bottom:8px">Projektnews</div><div style="margin-bottom:16px">'+newsHtml+'</div>':'')
       +(quellenHtml?'<div class="sc-lbl" style="margin-bottom:6px">Quellen</div><div class="quellen-list">'+quellenHtml+'</div>':'')
+      +'<div style="margin-top:16px"><button class="btn-pdf" onclick="printProjectResearch('+idx+')">&#8595;&nbsp; Dieses Projekt als PDF speichern</button></div>'
       +'</div>';
     if(rbtn){ rbtn.style.display='none'; }
   }catch(e){
