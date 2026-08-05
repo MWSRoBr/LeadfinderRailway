@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v29d';
+const SERVER_VERSION = 'v30';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -196,6 +196,21 @@ function getDateRange() {
 
 // ── BRAVE SEARCH ─────────────────────────────────────────────────
 const BRAVE_KEY = process.env.Brave_Search_API;
+
+// Firmenabgleich: prüft ob ein firmenspezifisches Wort im Profiltext vorkommt.
+// personName wird ausgeschlossen, weil er bei personenbenannten Firmen (Architekturbüros)
+// sonst automatisch matcht – auch bei gleichnamigen fremden Personen.
+function firmaPasst(firma, profilText, personName) {
+  if (!firma || !profilText) return false;
+  const txt = profilText.toLowerCase();
+  const stop = ['gmbh','mbh','co','kg','ag','ohg','ug','und','the','architekten','architects','planners','real','estate','group','holding','deutschland','partner','partners'];
+  // Namensteile der Person ausschließen (Vor- und Nachname)
+  const namensteile = (personName||'').toLowerCase().split(/\s+/).filter(Boolean);
+  const woerter = firma.toLowerCase().replace(/[^a-zäöüß0-9\s]/g,' ').split(/\s+/)
+    .filter(w => w.length > 3 && !stop.includes(w) && !namensteile.includes(w));
+  if (!woerter.length) return false;
+  return woerter.some(w => txt.includes(w));
+}
 
 async function braveSearch(query, limit = 5) {
   const url = new URL('https://api.search.brave.com/res/v1/web/search');
@@ -761,13 +776,14 @@ app.post('/api/project-research', async (req, res) => {
         const firma = a.firma;
         const result = { rolle: a.rolle, firma: firma, projektkontaktName: a.name || '', firmendaten: null, ansprechpartner: [], quellen: [] };
         try {
-          // Parallel: Impressum-Suche + Team-Suche
+          // Parallel: Impressum-Suche + Team-Suche (auf Deutschland gelenkt)
           const [impRes, teamRes] = await Promise.all([
-            braveSearch(`"${firma}" Impressum`, 3).catch(() => []),
-            braveSearch(`"${firma}" Team Ansprechpartner Kontakt`, 3).catch(() => [])
+            braveSearch(`"${firma}" Deutschland Impressum`, 4).catch(() => []),
+            braveSearch(`"${firma}" Deutschland Team Ansprechpartner Kontakt`, 3).catch(() => [])
           ]);
-          // Impressum scrapen
-          const impHit = (impRes||[]).find(r => r.url && /impressum|imprint/i.test(r.url)) || (impRes||[])[0];
+          // Impressum: .de-Domains bevorzugen (deutsche Niederlassung statt Auslandssitz)
+          const impDe = (impRes||[]).find(r => r.url && /impressum|imprint/i.test(r.url) && /\.de(\/|$|\?)/i.test(r.url));
+          const impHit = impDe || (impRes||[]).find(r => r.url && /impressum|imprint/i.test(r.url)) || (impRes||[]).find(r => r.url && /\.de(\/|$|\?)/i.test(r.url)) || (impRes||[])[0];
           let impScrape = '';
           if (impHit && impHit.url) { impScrape = await firecrawlScrape(impHit.url, 8000).catch(() => ''); result.quellen.push({ label: 'Impressum', url: impHit.url }); }
           // Team-Seite scrapen (nur wenn es einen projektbezogenen Namen gibt zum Anreichern)
@@ -796,11 +812,13 @@ app.post('/api/project-research', async (req, res) => {
             try {
               const suchbegriff = [ap.name, ap.funktion||'', 'LinkedIn'].filter(Boolean).join(' ');
               const li = await braveSearch(suchbegriff, 4).catch(() => []);
-              const urls = (li||[]).map(r => r.url).filter(Boolean);
-              console.log('[LINKEDIN]', ap.name, '@', firma, '| Treffer-URLs:', JSON.stringify(urls));
-              const hit = (li||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
-              if (hit) { ap.linkedin = hit.url; console.log('[LINKEDIN] -> Profil gesetzt:', hit.url); }
-              else console.log('[LINKEDIN] -> kein /in/-Profil im Ergebnis');
+              // Nur echte /in/-Profile, und nur wenn Firma im Profiltext plausibel vorkommt
+              const hit = (li||[]).find(r => {
+                if (!r.url || !/linkedin\.com\/in\//i.test(r.url)) return false;
+                const profilText = (r.title||'') + ' ' + (r.description||'');
+                return firmaPasst(firma, profilText, ap.name);
+              });
+              if (hit) ap.linkedin = hit.url;
             } catch(e) { console.log('[LINKEDIN] Fehler:', e.message); }
           }));
         } catch(e) { console.log('Beteiligten-Recherche fehlgeschlagen für', firma, e.message); }
@@ -825,17 +843,20 @@ app.post('/api/project-research', async (req, res) => {
       }
       if (zielFirma) {
         try {
-          const fmRes = await braveSearch(`"${zielFirma}" Facility Manager`, 3).catch(() => []);
-          // Bevorzugt echtes LinkedIn-Profil, sonst ersten plausiblen Treffer
-          const fmLinkedIn = (fmRes||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
-          const fmHit = fmLinkedIn || (fmRes||[])[0];
+          const fmRes = await braveSearch(`${zielFirma} Facility Manager LinkedIn`, 4).catch(() => []);
+          // NUR echtes LinkedIn-Personenprofil, das zur Firma passt – sonst nichts anzeigen
+          const fmHit = (fmRes||[]).find(r => {
+            if (!r.url || !/linkedin\.com\/in\//i.test(r.url)) return false;
+            const profilText = (r.title||'') + ' ' + (r.description||'');
+            return firmaPasst(zielFirma, profilText);
+          });
           if (fmHit) {
             parsed.facilityManager = {
               firma: zielFirma,
               treffer: fmHit.title || '',
               beschreibung: fmHit.description || '',
               url: fmHit.url || '',
-              istLinkedIn: !!fmLinkedIn
+              istLinkedIn: true
             };
           }
         } catch(e) { console.log('FM-Suche fehlgeschlagen:', e.message); }
