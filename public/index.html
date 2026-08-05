@@ -273,7 +273,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v30 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v31 · Dashboard v6
 </div>
 
 <script>
@@ -775,17 +775,29 @@ async function researchProject(idx){
 
     // Quellen: technisch gesammelte, sortierte Struktur (mit Fallback auf alte Liste)
     var quellenHtml='';
+    var domainVon=function(url){try{return String(url).replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0];}catch(e){return url;}};
+    var projLabel=function(q){
+      // Projektquellen: Titel zeigen, aber nichtssagende/generische Labels durch Domain ersetzen
+      var l=q.label||'';
+      if(!l || l==='Projektquelle' || l===q.url || l.indexOf('http')===0) return domainVon(q.url);
+      return l;
+    };
+    var firmaLabel=function(q){
+      // Firmen-Quellen: Domain + Quellentyp
+      var typ=q.label||''; // 'Impressum' oder 'Team-/Kontaktseite'
+      return domainVon(q.url)+(typ?' · '+typ:'');
+    };
     if(d._quellen){
       var qp=d._quellen.projekt||[];
       var qb=d._quellen.beteiligte||[];
       if(qp.length){
         quellenHtml+='<div class="q-grp"><div class="q-grp-t">Projektquellen</div>';
-        qp.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(q.label||q.url)+'</a>'; });
+        qp.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(projLabel(q))+'</a>'; });
         quellenHtml+='</div>';
       }
       qb.forEach(function(g){
         quellenHtml+='<div class="q-grp"><div class="q-grp-t">'+esc(g.firma)+'</div>';
-        g.quellen.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(q.label||q.url)+'</a>'; });
+        g.quellen.forEach(function(q){ quellenHtml+='<a href="'+esc(q.url)+'" target="_blank" rel="noopener" class="q-link">'+esc(firmaLabel(q))+'</a>'; });
         quellenHtml+='</div>';
       });
     } else {
