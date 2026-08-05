@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v27';
+const SERVER_VERSION = 'v28d';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -779,9 +779,9 @@ app.post('/api/project-research', async (req, res) => {
           const exText = await claudeSonnet(apiKey,
             'Gib NUR ein JSON-Objekt zurück. Trenne STRIKT zwischen Firmendaten (aus Impressum) und Ansprechpartnern. '
             + 'firmendaten: aus dem Impressum (§5 TMG) – Geschäftsführer/Vertretungsberechtigte, Anschrift, Telefon, E-Mail, Handelsregister. Nur explizit Genanntes. '
-            + 'ansprechpartner: NUR wenn ein projektbezogener Name übergeben wurde, reichere GENAU diesen mit Kontaktdaten aus der Team-/Kontaktseite an (Funktion, Telefon, E-Mail). Liste NICHT die ganze Belegschaft. Wenn der übergebene Name auf der Team-Seite nicht auftaucht, gib ihn trotzdem mit dem aus, was bekannt ist. Kein projektbezogener Name: leeres Array. '
+            + 'ansprechpartner: NUR wenn ein projektbezogener Name übergeben wurde, gib GENAU diesen aus. Setze "aufSeiteGefunden" auf true NUR wenn der Name WÖRTLICH auf der Team-/Kontaktseite steht – dann darfst du Funktion/Telefon/E-Mail von dort ergänzen und quelle=Team-URL setzen. Steht der Name NICHT auf der Seite, setze aufSeiteGefunden=false, quelle="Projektkontext" und ergänze KEINE erfundenen Kontaktdaten. Liste NICHT die ganze Belegschaft. Kein projektbezogener Name: leeres Array. '
             + 'Nichts erfinden, nicht schätzen. Fehlende Felder: leerer String.',
-            `Firma: ${firma}\nProjektbezogener Name (falls vorhanden): ${a.name||'KEINER'}\n\nIMPRESSUM:\n${impScrape||'(nichts gefunden)'}\n\nTEAM-/KONTAKTSEITE:\n${teamScrape||'(nichts gefunden)'}\n\n{"firmendaten":{"geschaeftsfuehrer":"...","adresse":"...","telefon":"...","email":"...","handelsregister":"...","quelle":"Impressum-URL"},"ansprechpartner":[{"name":"...","funktion":"...","telefon":"...","email":"...","quelle":"Team-Seite-URL oder Projektkontext"}]}`,
+            `Firma: ${firma}\nProjektbezogener Name (falls vorhanden): ${a.name||'KEINER'}\n\nIMPRESSUM:\n${impScrape||'(nichts gefunden)'}\n\nTEAM-/KONTAKTSEITE:\n${teamScrape||'(nichts gefunden)'}\n\n{"firmendaten":{"geschaeftsfuehrer":"...","adresse":"...","telefon":"...","email":"...","handelsregister":"...","quelle":"Impressum-URL"},"ansprechpartner":[{"name":"...","funktion":"...","telefon":"...","email":"...","aufSeiteGefunden":true,"quelle":"Team-URL wenn gefunden, sonst Projektkontext"}]}`,
             1200
           );
           const em = exText.match(/\{[\s\S]*\}/);
@@ -794,10 +794,13 @@ app.post('/api/project-research', async (req, res) => {
           await Promise.all((result.ansprechpartner||[]).map(async (ap) => {
             if (!ap.name) return;
             try {
-              const li = await braveSearch(`"${ap.name}" ${firma} LinkedIn`, 2).catch(() => []);
+              const li = await braveSearch(`"${ap.name}" ${firma} LinkedIn`, 4).catch(() => []);
+              const urls = (li||[]).map(r => r.url).filter(Boolean);
+              console.log('[LINKEDIN]', ap.name, '@', firma, '| Treffer-URLs:', JSON.stringify(urls));
               const hit = (li||[]).find(r => r.url && /linkedin\.com\/in\//i.test(r.url));
-              if (hit) ap.linkedin = hit.url;
-            } catch(e) {}
+              if (hit) { ap.linkedin = hit.url; console.log('[LINKEDIN] -> Profil gesetzt:', hit.url); }
+              else console.log('[LINKEDIN] -> kein /in/-Profil im Ergebnis');
+            } catch(e) { console.log('[LINKEDIN] Fehler:', e.message); }
           }));
         } catch(e) { console.log('Beteiligten-Recherche fehlgeschlagen für', firma, e.message); }
         return result;
