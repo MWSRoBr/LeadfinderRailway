@@ -40,6 +40,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .btn-start{width:100%;margin-top:28px;padding:18px;background:var(--black);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:background .15s}
 .btn-start:hover{background:#333}
 .btn-start:disabled{background:#bbb;cursor:not-allowed}
+.groesse-row{margin-top:24px}
+.groesse-lbl{font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.groesse-btns{display:flex;gap:8px}
+.groesse-btn{flex:1;padding:12px;border:1.5px solid var(--border);background:var(--white);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--text-mid);cursor:pointer;transition:all .15s}
+.groesse-btn:hover{border-color:var(--black)}
+.groesse-btn.active{background:var(--black);color:#fff;border-color:var(--black)}
+.groesse-hint{font-size:11px;color:var(--text-muted);margin-top:6px}
 .progress-box{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:28px 32px;margin-bottom:32px;display:none}
 .progress-box.active{display:block}
 .p-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
@@ -246,6 +253,14 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
     <div class="step-num">Schritt 3 von 3</div>
     <div class="step-title">Bereit zur Suche</div>
     <div class="step-desc">Das Tool sucht jetzt nach geplanten Bauprojekten und wachsenden Unternehmen in deiner Region.</div>
+    <div class="groesse-row">
+      <div class="groesse-lbl">Projektgröße</div>
+      <div class="groesse-btns">
+        <button class="groesse-btn active" id="gKlein" onclick="setGroesse('klein')">Klein</button>
+        <button class="groesse-btn" id="gAlle" onclick="setGroesse('alle')">Alle</button>
+      </div>
+      <div class="groesse-hint">Klein: Praxen, Kanzleien, kleinere Bürogebäude · Alle: jede Größe</div>
+    </div>
     <button class="btn-start" id="btnStart" onclick="startSearch('ausgewogen')">Potentielle Leads suchen</button>
     <div class="status-msg" id="searchStatus"></div>
   </div>
@@ -273,7 +288,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v33 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v34 · Dashboard v6
 </div>
 
 <script>
@@ -284,6 +299,12 @@ fetch('/api/version').then(function(r){return r.json();}).then(function(d){
 </script>
 <script>
 var orte=[], plzPrefixes=[], pInterval=null, currentStrictness='ausgewogen';
+var currentGroesse='klein';
+function setGroesse(g){
+  currentGroesse=g;
+  document.getElementById('gKlein').classList.toggle('active', g==='klein');
+  document.getElementById('gAlle').classList.toggle('active', g==='alle');
+}
 var searchCities=[], extraCities=[];
 window._leads=[], window._projects=[];
 
@@ -418,7 +439,7 @@ async function startSearch(strictness){
     // Send all orte (for region resolver) + extraCities
     var searchOrte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);}));
     var [projResp,searchResp]=await Promise.all([
-      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness,password:_pw})}),
+      fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness,groesse:currentGroesse,password:_pw})}),
       fetch('/api/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orte:searchOrte,plzPrefixes,strictness,password:_pw})})
     ]);
     var [projData,searchData]=await Promise.all([projResp.json(),searchResp.json()]);
