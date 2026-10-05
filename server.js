@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v32';
+const SERVER_VERSION = 'v33';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -348,7 +348,7 @@ app.post('/api/plz', async (req, res) => {
 
 // ── PROJECT SEARCH ───────────────────────────────────────────────
 app.post('/api/projects', async (req, res) => {
-  const { orte, plzPrefixes, strictness, password } = req.body; const apiKey = ANTHROPIC_KEY;
+  const { orte, plzPrefixes, strictness, groesse, password } = req.body; const apiKey = ANTHROPIC_KEY;
   if (!apiKey || !orte?.length) return res.status(400).json({ error: 'Missing params' });
   const nutzer = USERS[password] || 'unbekannt';
   const dates = getDateRange();
@@ -379,34 +379,48 @@ app.post('/api/projects', async (req, res) => {
     const o = (i) => queryOrte[i % queryOrte.length] || top_staedte[0];
     const y1 = new Date().getFullYear();
     const y2 = y1+1, y3 = y1+2;
-    const queries = strictness === 'breit' ? [
-      `${o(0)} Büro Neubau ${y1} ${y2}`,
-      `${o(1)} Büro Gewerbe Neubau ${y1} ${y2}`,
-      `${o(2)} Bürofläche Neubau Fertigstellung ${y2}`,
-      `${o(3)} Büro Umbau Sanierung ${y1} ${y2}`,
-      `${o(4)} Gewerbe Büro Neubau ${y1} ${y2}`,
-      `${o(5)} Büro Standort Fertigstellung ${y2}`,
-      `${o(6)} Verwaltungsgebäude Neubau ${y2}`,
-      `${o(7)} Bürofläche Investition ${y2}`
-    ] : [
-      `${o(0)} Bürogebäude Neubau ${y2} ${y3}`,
-      `${o(1)} Büroprojekt Neubau ${y1} ${y2}`,
-      `${o(2)} Büro Umbau Sanierung ${y2}`,
-      `${o(3)} Bürokomplex Neubau ${y2}`,
-      `${o(4)} Büro Neubau Fertigstellung ${y1} ${y2}`,
-      `${o(5)} Gewerbe Bürofläche Neubau ${y2}`,
-      `${o(6)} Bürogebäude Architekt ${y2} ${y3}`
-    ];
+    let queries, ausschreibungsQueries;
+    if (groesse === 'klein') {
+      // Fokus kleine Projekte: Praxen, Kanzleien, Gewerbehöfe, kleine Bürogebäude
+      queries = [
+        `${o(0)} Ärztehaus Praxisgebäude Neubau ${y2} ${y3}`,
+        `${o(1)} Kanzlei Bürohaus Neubau ${y1} ${y2}`,
+        `${o(2)} kleines Bürogebäude Neubau ${y2}`,
+        `${o(3)} Gewerbehof Büro Neubau ${y2}`,
+        `${o(4)} Bürohaus Umbau Sanierung ${y1} ${y2}`,
+        `${o(5)} Praxis Büro Neubau Fertigstellung ${y2}`,
+        `${o(6)} Bürogebäude mittelständisch Neubau ${y2} ${y3}`
+      ];
+      // kleine Projekte haben selten Ausschreibungen – weglassen
+      ausschreibungsQueries = [];
+    } else {
+      queries = strictness === 'breit' ? [
+        `${o(0)} Büro Neubau ${y1} ${y2}`,
+        `${o(1)} Büro Gewerbe Neubau ${y1} ${y2}`,
+        `${o(2)} Bürofläche Neubau Fertigstellung ${y2}`,
+        `${o(3)} Büro Umbau Sanierung ${y1} ${y2}`,
+        `${o(4)} Gewerbe Büro Neubau ${y1} ${y2}`,
+        `${o(5)} Büro Standort Fertigstellung ${y2}`,
+        `${o(6)} Verwaltungsgebäude Neubau ${y2}`,
+        `${o(7)} Bürofläche Investition ${y2}`
+      ] : [
+        `${o(0)} Bürogebäude Neubau ${y2} ${y3}`,
+        `${o(1)} Büroprojekt Neubau ${y1} ${y2}`,
+        `${o(2)} Büro Umbau Sanierung ${y2}`,
+        `${o(3)} Bürokomplex Neubau ${y2}`,
+        `${o(4)} Büro Neubau Fertigstellung ${y1} ${y2}`,
+        `${o(5)} Gewerbe Bürofläche Neubau ${y2}`,
+        `${o(6)} Bürogebäude Architekt ${y2} ${y3}`
+      ];
+      ausschreibungsQueries = [
+        `${o(0)} Büro Neubau Ausschreibung Vergabe ${y1} ${y2}`,
+        `${o(1)} Verwaltungsgebäude öffentlich Neubau Ausschreibung ${y2}`,
+        `${o(2)} Bürogebäude Neubau Vergabe evergabe ausschreibungen ${y2} ${y3}`,
+        `${o(3)} Behörde Hochschule Neubau Büro Vergabe ${y2} ${y3}`
+      ];
+    }
 
-    console.log('Project queries:', queries);
-
-    // Ausschreibungs-Queries: gezielt auf Vergabeportale + öffentliche Bauvorhaben
-    const ausschreibungsQueries = [
-      `${o(0)} Büro Neubau Ausschreibung Vergabe ${y1} ${y2}`,
-      `${o(1)} Verwaltungsgebäude öffentlich Neubau Ausschreibung ${y2}`,
-      `${o(2)} Bürogebäude Neubau Vergabe evergabe ausschreibungen ${y2} ${y3}`,
-      `${o(3)} Behörde Hochschule Neubau Büro Vergabe ${y2} ${y3}`
-    ];
+    console.log('Project queries (groesse=' + (groesse||'alle') + '):', queries);
     console.log('Ausschreibungs queries:', ausschreibungsQueries);
 
     const alleQueries = queries.concat(ausschreibungsQueries);
@@ -433,7 +447,7 @@ app.post('/api/projects', async (req, res) => {
         `Gib NUR ein JSON-Array zurück, beginne mit [ und schließe mit ]. Kein Text davor oder danach. Strings kurz halten.
 NUR Projekte aus: ${orte.slice(0,15).join(', ')}. Keine Projekte aus Berlin, Frankfurt, München, Hamburg.
 ${strictness === 'breit' ? 'Jeden Büroanteil aufnehmen.' : 'Nur klare Büroprojekte.'}
-Auch öffentliche Bauvorhaben aufnehmen (Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten).
+${groesse === 'klein' ? 'Fokus auf KLEINE Projekte: Praxen, Kanzleien, Gewerbehöfe, kleinere Bürogebäude, Mittelstand. KEINE großen Verwaltungsgebäude, Konzernzentralen, Hochschul- oder Behördenbauten.' : 'Auch öffentliche Bauvorhaben aufnehmen (Behörden, Verwaltungsgebäude, Hochschulen, Ministerien, Polizei, Landesbauten).'}
 Feld "zeitpunkt": bevorzugt Fertigstellung; wenn nur Baubeginn bekannt, diesen nehmen. Feld "zeitpunkt_typ": "Fertigstellung" oder "Baubeginn" (was in zeitpunkt steht).
 Feld "beschreibung": nur EIN konkreter harter Zusatzfakt der nicht schon in anderen Feldern steht (besondere Nutzung, Bauphase, Sanierungsdetail). Keine Zusammenfassung, keine Spekulation, keine Wertung. Sonst leerer String.
 Maximal 6 Projekte.`,
