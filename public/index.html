@@ -46,7 +46,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .groesse-btn{flex:1;padding:12px;border:1.5px solid var(--border);background:var(--white);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--text-mid);cursor:pointer;transition:all .15s}
 .groesse-btn:hover{border-color:var(--black)}
 .groesse-btn.active{background:var(--black);color:#fff;border-color:var(--black)}
-.groesse-hint{font-size:11px;color:var(--text-muted);margin-top:6px}
+.groesse-hint{font-size:13px;color:var(--text-mid);margin-top:10px;line-height:1.6}
 .progress-box{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:28px 32px;margin-bottom:32px;display:none}
 .progress-box.active{display:block}
 .p-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
@@ -257,9 +257,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
       <div class="groesse-lbl">Projektgröße</div>
       <div class="groesse-btns">
         <button class="groesse-btn active" id="gKlein" onclick="setGroesse('klein')">Klein</button>
-        <button class="groesse-btn" id="gAlle" onclick="setGroesse('alle')">Alle</button>
+        <button class="groesse-btn" id="gMittel" onclick="setGroesse('mittel')">Mittel</button>
+        <button class="groesse-btn" id="gGross" onclick="setGroesse('gross')">Groß</button>
       </div>
-      <div class="groesse-hint">Klein: Praxen, Kanzleien, kleinere Bürogebäude · Alle: jede Größe</div>
+      <div class="groesse-hint" id="groesseHint"></div>
     </div>
     <button class="btn-start" id="btnStart" onclick="startSearch('ausgewogen')">Potentielle Leads suchen</button>
     <div class="status-msg" id="searchStatus"></div>
@@ -288,7 +289,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v34 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v35 · Dashboard v6
 </div>
 
 <script>
@@ -300,10 +301,17 @@ fetch('/api/version').then(function(r){return r.json();}).then(function(d){
 <script>
 var orte=[], plzPrefixes=[], pInterval=null, currentStrictness='ausgewogen';
 var currentGroesse='klein';
+var groesseTexte={
+  klein:'<strong>Klein:</strong> einzelne kleine Objekte, meist inhabergeführt – Praxen, Ärztehäuser, MVZ, Kanzleien, Geschäftshäuser, Gewerbehöfe, kleine Bürohäuser.',
+  mittel:'<strong>Mittel:</strong> eigenständige Firmensitze und mittlere Bürogebäude – Unternehmenssitze im Mittelstand, mehrgeschossige Bürogebäude, Büroneubauten einzelner Firmen.',
+  gross:'<strong>Groß:</strong> Großbauten mit vielen Nutzern – Konzernzentralen, öffentliche Verwaltungsgebäude, Hochschul- und Behördenbauten, Campus, Bürohochhäuser.'
+};
 function setGroesse(g){
   currentGroesse=g;
   document.getElementById('gKlein').classList.toggle('active', g==='klein');
-  document.getElementById('gAlle').classList.toggle('active', g==='alle');
+  document.getElementById('gMittel').classList.toggle('active', g==='mittel');
+  document.getElementById('gGross').classList.toggle('active', g==='gross');
+  document.getElementById('groesseHint').innerHTML=groesseTexte[g]||'';
 }
 var searchCities=[], extraCities=[];
 window._leads=[], window._projects=[];
@@ -975,7 +983,7 @@ function logout(){
 }
 
 // Passwortabfrage beim Seitenaufruf
-window.addEventListener('DOMContentLoaded', function(){ checkAuth(); });
+window.addEventListener('DOMContentLoaded', function(){ checkAuth(); setGroesse('klein'); });
 async function logSearchResult(projekte, firmen, projNamen, firmNamen){
   try{
     var staedte = searchCities.concat(extraCities.filter(function(c){return !searchCities.includes(c);})).join(', ');
