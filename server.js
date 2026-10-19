@@ -4,7 +4,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v34';
+const SERVER_VERSION = 'v35';
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -406,6 +406,21 @@ app.post('/api/projects', async (req, res) => {
         `${o(5)} Bürokomplex Neubau Fertigstellung ${y2}`,
         `${o(6)} Firmenneubau Büro Architekt ${y2} ${y3}`
       ];
+    } else if (groesse === 'moebel') {
+      // Möbel-Ausschreibungen: Beschaffung von Büromöbeln/Einrichtung, spätere Projektphase
+      queries = [
+        `${o(0)} Büromöbel Ausschreibung Vergabe ${y1} ${y2}`,
+        `${o(1)} Büroeinrichtung Rahmenvertrag Ausschreibung ${y1} ${y2}`,
+        `${o(2)} Büroausstattung Arbeitsplatzausstattung Vergabe ${y2}`,
+        `${o(3)} Konferenzmöbel Sitzmöbel Büro Ausschreibung ${y1} ${y2}`,
+        `${o(4)} Arbeitsplatzkonzept New Work Büro Ausschreibung ${y2}`,
+        `${o(5)} Möblierung Büro Vergabe evergabe ${y1} ${y2}`,
+        `${o(6)} Trennwandsysteme Akustikmöbel Büro Ausschreibung ${y2}`
+      ];
+      ausschreibungsQueries = [
+        `${o(0)} Büromöbel Rahmenvertrag öffentliche Ausschreibung Vergabe evergabe ${y1} ${y2}`,
+        `${o(1)} Büroausstattung Beschaffung Vergabe deutsches-ausschreibungsblatt ${y2}`
+      ];
     } else {
       // Klein (Standard): Praxen, Kanzleien, Geschäftshäuser, Gewerbehöfe, MVZ
       queries = [
@@ -439,6 +454,39 @@ app.post('/api/projects', async (req, res) => {
 
     console.log('Raw project text preview:', rawText.substring(0,500));
     console.log('Calling Sonnet with apiKey:', apiKey ? 'set ('+apiKey.substring(0,8)+'...)' : 'MISSING');
+
+    // Möbel-Ausschreibungen: eigenes Schema + eigene Rückgabe
+    if (groesse === 'moebel') {
+      let axText = '';
+      try {
+        axText = await claudeSonnet(apiKey,
+          `Gib NUR ein JSON-Array zurück, beginne mit [ und schließe mit ]. Kein Text davor/danach.
+NUR Ausschreibungen/Beschaffungen für BÜROMÖBEL, Büroeinrichtung oder Arbeitsplatzausstattung aus: ${orte.slice(0,15).join(', ')}.
+Nur echte Ausschreibungen/Vergaben/Rahmenverträge – keine Möbelhändler-Werbung, keine Produktseiten.
+KEINE Projekte aus Wohnbau, Schule, Krankenhaus, Produktion ohne Büro, Einzelhandel.
+Feld "frist": Angebots-/Abgabefrist wenn genannt, sonst leer. Feld "beschreibung": ein konkreter Fakt (Umfang, Losgröße, Möbelart), keine Wertung, sonst leer.
+Maximal 6 Einträge.`,
+          `${rawText}\n\n[{"titel":"...","auftraggeber":"...","frist":"Datum oder leer","beschreibung":"...","quelleUrl":"https://..."}]`,
+          5000
+        );
+      } catch(e) {
+        console.log('Möbel-Sonnet failed:', e.message);
+        return res.json({ ausschreibungen: [], _typ: 'ausschreibung', _range: dates.range10 });
+      }
+      let ausschreibungen = [];
+      const s = axText.indexOf('['), e2 = axText.lastIndexOf(']');
+      if (s >= 0 && e2 > s) {
+        try { ausschreibungen = JSON.parse(axText.substring(s, e2+1)); } catch(err) { console.log('Möbel parse error:', err.message); }
+      }
+      // Dedup nach Titel/URL
+      const seen = new Set();
+      ausschreibungen = ausschreibungen.filter(a => {
+        const k = (a.quelleUrl||'') + '|' + (a.titel||'').toLowerCase().substring(0,30);
+        if (!k.trim() || seen.has(k)) return false; seen.add(k); return true;
+      }).slice(0, 6);
+      console.log('Möbel-Ausschreibungen gefunden:', ausschreibungen.length);
+      return res.json({ ausschreibungen, _typ: 'ausschreibung', _range: dates.range10 });
+    }
     // Ein einziger Call: extrahieren + anreichern (stabiler, günstiger)
     let jsonText = '';
     try {
