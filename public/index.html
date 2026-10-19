@@ -47,6 +47,16 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 .groesse-btn{flex:1;padding:12px;border:1.5px solid var(--border);background:var(--white);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--text-mid);cursor:pointer;transition:all .15s}
 .groesse-btn:hover{border-color:var(--black)}
 .groesse-btn.active{background:var(--black);color:#fff;border-color:var(--black)}
+.groesse-sep{width:1px;align-self:stretch;background:var(--border);margin:0 4px}
+.ax-card{background:var(--white);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:8px;padding:16px 18px;margin-bottom:12px}
+.ax-titel{font-size:15px;font-weight:600;color:var(--text-dark);margin-bottom:10px;line-height:1.4}
+.ax-meta{margin-bottom:8px}
+.ax-row{display:flex;gap:12px;font-size:13px;padding:2px 0}
+.ax-k{flex:0 0 100px;color:var(--text-muted)}
+.ax-v{flex:1;color:var(--text-dark);font-weight:500}
+.ax-desc{font-size:13px;color:var(--text-mid);line-height:1.6;margin:6px 0 10px}
+.ax-quelle{display:inline-block;font-size:13px;font-weight:600;color:var(--green);text-decoration:none}
+.ax-quelle:hover{text-decoration:underline}
 .groesse-hint{font-size:13px;color:var(--text-mid);margin-top:10px;line-height:1.6}
 .progress-box{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:28px 32px;margin-bottom:32px;display:none}
 .progress-box.active{display:block}
@@ -261,6 +271,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
         <button class="groesse-btn active" id="gKlein" onclick="setGroesse('klein')">Klein</button>
         <button class="groesse-btn" id="gMittel" onclick="setGroesse('mittel')">Mittel</button>
         <button class="groesse-btn" id="gGross" onclick="setGroesse('gross')">Groß</button>
+        <div class="groesse-sep"></div>
+        <button class="groesse-btn" id="gMoebel" onclick="setGroesse('moebel')">Möbel-Ausschreibungen</button>
       </div>
       <div class="groesse-hint" id="groesseHint"></div>
     </div>
@@ -291,7 +303,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v36 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v37 · Dashboard v6
 </div>
 
 <script>
@@ -306,13 +318,15 @@ var currentGroesse='klein';
 var groesseTexte={
   klein:'<strong>Klein:</strong> Kleinere Unternehmen wie Anwaltskanzleien, Arztpraxen oder kleine Büros. Ca. bis 20 Mitarbeiter, meist inhabergeführt.',
   mittel:'<strong>Mittel:</strong> Mittelständische Firmen mit eigenem Bürogebäude. Ca. 20 bis 50 Mitarbeiter.',
-  gross:'<strong>Groß:</strong> Große, oft national tätige Unternehmen, Konzernzentralen, Behörden oder Hochschulen. Ca. ab 50 Mitarbeiter.'
+  gross:'<strong>Groß:</strong> Große, oft national tätige Unternehmen, Konzernzentralen, Behörden oder Hochschulen. Ca. ab 50 Mitarbeiter.',
+  moebel:'<strong>Möbel-Ausschreibungen:</strong> Laufende Ausschreibungen und Rahmenverträge für Büromöbel und Einrichtung – Projekte kurz vor der Möbelbeschaffung.'
 };
 function setGroesse(g){
   currentGroesse=g;
   document.getElementById('gKlein').classList.toggle('active', g==='klein');
   document.getElementById('gMittel').classList.toggle('active', g==='mittel');
   document.getElementById('gGross').classList.toggle('active', g==='gross');
+  document.getElementById('gMoebel').classList.toggle('active', g==='moebel');
   document.getElementById('groesseHint').innerHTML=groesseTexte[g]||'';
 }
 var searchCities=[], extraCities=[];
@@ -469,6 +483,7 @@ async function startSearch(strictness){
     }
 
     var projects=projData.projects||[];
+    var ausschreibungen=projData.ausschreibungen||[];
 
     // Update search cities display with resolved region data
     // searchCities bereits korrekt gesetzt beim PLZ-Ermitteln — nicht überschreiben
@@ -477,21 +492,24 @@ async function startSearch(strictness){
     var branchen=parsed?(parsed.branchen||[]):[];
     var leads=parsed?(parsed.leads||[]):[];
 
-    renderResults(branchen,projects,leads,searchData._dateRange,searchData._orte,projData._range);
+    renderResults(branchen,projects,leads,searchData._dateRange,searchData._orte,projData._range,ausschreibungen);
 
     // Logging mit Namen
-    var projNamen = projects.map(function(p){return p.projektname||'';}).filter(Boolean);
+    var projNamen = (ausschreibungen.length?ausschreibungen.map(function(a){return a.titel||'';}):projects.map(function(p){return p.projektname||'';})).filter(Boolean);
     var firmNamen = leads.map(function(l){return l.name||'';}).filter(Boolean);
     logSearchResult(projects.length, leads.length, projNamen, firmNamen);
 
+    var istMoebel = currentGroesse==='moebel';
+    var hauptAnzahl = istMoebel ? ausschreibungen.length : projects.length;
     var msgs=[];
-    if(projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
+    if(istMoebel && ausschreibungen.length) msgs.push(ausschreibungen.length+' Ausschreibung'+(ausschreibungen.length===1?'':'en'));
+    if(!istMoebel && projects.length) msgs.push(projects.length+' Projekt'+(projects.length===1?'':'e'));
     if(leads.length){var h=leads.filter(function(l){return(l.prioritaet||'').toLowerCase()==='hoch';}).length; msgs.push(leads.length+(leads.length===1?' Firma':' Firmen')+' ('+h+' Hoch)');}
-    var nothingFound = !projects.length && !leads.length;
+    var nothingFound = !hauptAnzahl && !leads.length;
     if(msgs.length){ st.className='status-msg ok'; st.textContent=msgs.join(' · '); }
     else { st.className='status-msg err'; st.textContent='Keine Ergebnisse mit aktuellem Filter.'; }
 
-    if((nothingFound || companyNoResults || !projects.length) && currentStrictness!=='breit'){
+    if(!istMoebel && (nothingFound || companyNoResults || !projects.length) && currentStrictness!=='breit'){
       var retryDiv=document.createElement('div');
       retryDiv.style.cssText='background:#fffbe6;border:1.5px solid #e8c840;border-left:4px solid #c8a800;border-radius:8px;padding:20px 24px;margin-top:16px';
       retryDiv.innerHTML='<p style="font-size:14px;font-weight:600;color:#5a4a00;margin-bottom:8px">'+(nothingFound?'Keine Ergebnisse gefunden.':'Nicht alle Bereiche haben Treffer geliefert.')+'</p>'
@@ -532,7 +550,7 @@ function updateSearchCities(region, topStaedte, hiddenChampion) {
   renderTags();
 }
 
-function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
+function renderResults(branchen,projects,leads,dateRange,orteStr,projRange,ausschreibungen){
   var el=document.getElementById('results-section'), html='';
   html+='<div class="disclaimer">&#9888;&nbsp;<strong>KI-generierte Ergebnisse – zur eigenen Einschätzung.</strong> Diese Liste kann Fehler oder veraltete Angaben enthalten. Bitte alle Quellen selbst prüfen und die Ergebnisse als Ideengrundlage verstehen – nicht als verifizierten Kundenauftrag.</div>';
 
@@ -540,6 +558,23 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
   if(branchen.length){
     html+='<div class="section-lbl">Starke Branchen'+(orteStr?' – '+esc(orteStr.split(',').slice(0,4).join(', '))+(orteStr.split(',').length>4?' …':''):'')+(dateRange?' &nbsp;&middot;&nbsp; '+esc(dateRange):'')+'</div><div class="branchen-grid">';
     branchen.forEach(function(b){var stark=(b.staerke||'').toLowerCase()==='stark';html+='<div class="br-card'+(stark?'':' moderat')+'"><div class="br-top"><div class="br-name">'+esc(b.name)+'</div><span class="br-badge '+(stark?'badge-stark':'badge-moderat')+'">'+esc(b.staerke||'')+'</span></div><div class="br-text">'+esc(b.begruendung)+'</div></div>';});
+    html+='</div>';
+  }
+
+  // Möbel-Ausschreibungen block (eigenes, schlankes Format)
+  if(ausschreibungen&&ausschreibungen.length){
+    html+='<div class="block-section"><div class="block-head"><div class="block-title">Möbel-Ausschreibungen in deiner Region</div><div class="block-meta">'+ausschreibungen.length+' Ausschreibung'+(ausschreibungen.length===1?'':'en')+'</div></div>';
+    ausschreibungen.forEach(function(a){
+      html+='<div class="ax-card">'
+        +'<div class="ax-titel">'+esc(a.titel||'Ausschreibung')+'</div>'
+        +'<div class="ax-meta">'
+        +(a.auftraggeber?'<div class="ax-row"><span class="ax-k">Auftraggeber</span><span class="ax-v">'+esc(a.auftraggeber)+'</span></div>':'')
+        +(a.frist&&a.frist!=='unbekannt'?'<div class="ax-row"><span class="ax-k">Frist</span><span class="ax-v">'+esc(a.frist)+'</span></div>':'')
+        +'</div>'
+        +(a.beschreibung?'<p class="ax-desc">'+esc(a.beschreibung)+'</p>':'')
+        +(a.quelleUrl&&a.quelleUrl.indexOf('http')===0?'<a class="ax-quelle" href="'+esc(a.quelleUrl)+'" target="_blank" rel="noopener">Ausschreibung öffnen &#8599;</a>':'')
+        +'</div>';
+    });
     html+='</div>';
   }
 
@@ -609,7 +644,7 @@ function renderResults(branchen,projects,leads,dateRange,orteStr,projRange){
   }
 
   // Gesamt-PDF-Button ganz unten (nur wenn Ergebnisse vorhanden)
-  if((projects&&projects.length)||(leads&&leads.length)){
+  if((projects&&projects.length)||(leads&&leads.length)||(ausschreibungen&&ausschreibungen.length)){
     html+='<div style="text-align:center;margin:32px 0 8px"><button class="btn-pdf" onclick="printResults()">&#8595;&nbsp; Alles als PDF speichern</button></div>';
   }
 
