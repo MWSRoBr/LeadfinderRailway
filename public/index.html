@@ -209,6 +209,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   .lead-card,.proj-card{break-inside:avoid;page-break-inside:avoid}
   body{background:#fff;padding:0;margin:0}
 }
+.start-choice{display:flex;gap:14px;margin-top:8px}
+.sc-btn{flex:1;padding:18px;border:none;border-radius:10px;background:var(--black);color:#fff;font-family:'DM Sans',sans-serif;font-size:17px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.sc-btn:hover{opacity:.88}
+.sc-btn-alt{background:var(--green,#3d6b1a)}
 </style>
 </head>
 <body>
@@ -237,6 +241,11 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
       <span style="color:var(--black);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
     </div>
   </div>
+  <div id="startChoice" class="start-choice">
+    <button class="sc-btn" id="btnSuchen" onclick="chooseSuchen()">Suchen</button>
+    <button class="sc-btn sc-btn-alt" id="btnGebiet" onclick="location.href='/vertrieb'">Mein Gebiet</button>
+  </div>
+  <div id="searchFlow" style="display:none">
   <div class="step active" id="step1">
     <div class="step-num">Schritt 1 von 3</div>
     <div class="step-title">In welchem PLZ-Gebiet suchst du?</div>
@@ -287,6 +296,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   </div>
 
   <div id="results-section"></div>
+  </div><!-- /searchFlow -->
 </div>
 
 <!-- Modal -->
@@ -304,7 +314,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v38 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v39 · Dashboard v6
 </div>
 
 <script>
@@ -1053,6 +1063,11 @@ function retryBroadSearch(){startSearch('breit');}
 
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){if(!s)return'';return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+function chooseSuchen(){
+  var sc=document.getElementById('startChoice'); if(sc) sc.style.display='none';
+  var sf=document.getElementById('searchFlow'); if(sf) sf.style.display='block';
+}
 </script>
 </body>
 </html>
