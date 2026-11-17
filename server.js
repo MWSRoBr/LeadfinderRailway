@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v37';
+const SERVER_VERSION = 'v38';
 
 
 // ── VERTRIEBS-DASHBOARD: Ranking-Daten (nur serverseitig, nie im Quelltext) ──
@@ -1047,7 +1047,7 @@ app.post('/api/stats-data', async (req, res) => {
       const d = parseDate(r[0]);
       if (!d) return;
       const k = dayKey(d);
-      if (!perDay[k]) perDay[k] = { datum: k, logins: 0, suchlaeufe: 0, projekte: 0, firmen: 0, detailRecherchen: 0 };
+      if (!perDay[k]) perDay[k] = { datum: k, logins: 0, suchlaeufe: 0, projekte: 0, firmen: 0, detailRecherchen: 0, gebiet: 0 };
       const aktion = r[4] || '';
       if (aktion === 'Login') perDay[k].logins++;
       else if (aktion === 'Suchlauf') {
@@ -1056,10 +1056,11 @@ app.post('/api/stats-data', async (req, res) => {
         const fi = parseInt(r[6]); if (!isNaN(fi)) perDay[k].firmen += fi;
       }
       else if (aktion === 'Web-Recherche' || aktion === 'Firmenprofil') perDay[k].detailRecherchen++;
+      else if (aktion === 'Mein Gebiet') perDay[k].gebiet++;
     });
 
     const tage = Object.values(perDay).sort((a,b) => a.datum.localeCompare(b.datum));
-    return res.json({ tage, rollout: dayKey(ROLLOUT_DATE) });
+    return res.json({ tage, rollout: dayKey(ROLLOUT_DATE), top200: '2026-11-17' });
   } catch(e) {
     return res.json({ error: e.message });
   }
