@@ -90,6 +90,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 var _pw = sessionStorage.getItem('statsPw') || '';
 var _tage = [];
 var _rollout = '';
+var _top200 = '';
 var _range = 'all';
 var _chart = null;
 
@@ -123,6 +124,7 @@ async function loadData(fromLogin){
     sessionStorage.setItem('statsPw', _pw);
     _tage = data.tage || [];
     _rollout = data.rollout || '';
+    _top200 = data.top200 || '';
     document.getElementById('loginOverlay').style.display='none';
     document.getElementById('content').style.display='block';
     render();
@@ -147,9 +149,9 @@ function render(){
   var tage = filterByRange();
 
   // KPIs summieren
-  var logins=0,such=0,proj=0,firm=0,det=0;
+  var logins=0,such=0,proj=0,firm=0,det=0,geb=0;
   tage.forEach(function(t){
-    logins+=t.logins; such+=t.suchlaeufe; proj+=t.projekte; firm+=t.firmen; det+=t.detailRecherchen;
+    logins+=t.logins; such+=t.suchlaeufe; proj+=t.projekte; firm+=t.firmen; det+=t.detailRecherchen; geb+=(t.gebiet||0);
   });
   var avgSuch = logins>0 ? (such/logins).toFixed(1) : '–';
   var avgProj = such>0 ? (proj/such).toFixed(1) : '–';
@@ -161,7 +163,8 @@ function render(){
     {label:'Suchläufe',value:such,sub:'Ø '+avgSuch+' pro Aufruf'},
     {label:'Projekte gefunden',value:proj,sub:'Ø '+avgProj+' pro Suche'},
     {label:'Firmen gefunden',value:firm,sub:'Ø '+avgFirm+' pro Suche'},
-    {label:'Detail-Recherchen',value:det,sub:detQuote+' der Suchläufe'}
+    {label:'Detail-Recherchen',value:det,sub:detQuote+' der Suchläufe'},
+    {label:'Mein Gebiet',value:geb,sub:'Aufrufe (anonym)'}
   ];
   document.getElementById('kpiGrid').innerHTML = kpis.map(function(k){
     return '<div class="kpi"><div class="kpi-label">'+k.label+'</div><div class="kpi-value">'+k.value+'</div><div class="kpi-sub">'+k.sub+'</div></div>';
@@ -176,7 +179,8 @@ function bucketData(tage){
     return {
       labels: tage.map(function(t){var p=t.datum.split('-');return p[2]+'.'+p[1]+'.';}),
       such: tage.map(function(t){return t.suchlaeufe;}),
-      rolloutIdx: tage.findIndex(function(t){return t.datum===_rollout;})
+      rolloutIdx: tage.findIndex(function(t){return t.datum===_rollout;}),
+      top200Idx: tage.findIndex(function(t){return t.datum===_top200;})
     };
   }
   if(_range==='90'){
@@ -192,7 +196,7 @@ function bucketData(tage){
       weeks[key].such+=t.suchlaeufe;
     });
     var arr=Object.values(weeks);
-    return {labels:arr.map(function(w){return w.label;}),such:arr.map(function(w){return w.such;}),rolloutIdx:-1};
+    return {labels:arr.map(function(w){return w.label;}),such:arr.map(function(w){return w.such;}),rolloutIdx:-1,top200Idx:-1};
   }
   // all: monatsweise
   var months={};
@@ -204,7 +208,8 @@ function bucketData(tage){
     months[key].such+=t.suchlaeufe;
   });
   var arr=Object.values(months);
-  return {labels:arr.map(function(m){return m.label;}),such:arr.map(function(m){return m.such;}),rolloutIdx:-1};
+  var t2k=_top200?(_top200.split('-')[0]+'-'+_top200.split('-')[1]):'';
+  return {labels:arr.map(function(m){return m.label;}),such:arr.map(function(m){return m.such;}),rolloutIdx:-1,top200Idx:Object.keys(months).indexOf(t2k)};
 }
 
 function drawChart(tage){
@@ -217,6 +222,7 @@ function drawChart(tage){
 
   var annotations = [];
   var rolloutIdx = b.rolloutIdx;
+  var top200Idx = b.top200Idx;
 
   _chart = new Chart(ctx,{
     type:'line',
@@ -249,10 +255,9 @@ function drawChart(tage){
     plugins:[{
       id:'rolloutMarker',
       afterDraw:function(chart){
-        if(rolloutIdx<0) return;
-        var xAxis=chart.scales.x, yAxis=chart.scales.y;
+        var xAxis=chart.scales.x, yAxis=chart.scales.y, ctx2=chart.ctx;
+        if(rolloutIdx>=0){
         var x=xAxis.getPixelForValue(rolloutIdx);
-        var ctx2=chart.ctx;
         ctx2.save();
         ctx2.beginPath();
         ctx2.moveTo(x,yAxis.top);
@@ -267,6 +272,16 @@ function drawChart(tage){
         ctx2.textAlign='center';
         ctx2.fillText('Rollout',x,yAxis.top-4);
         ctx2.restore();
+        }
+        if(top200Idx>=0){
+          var x2=xAxis.getPixelForValue(top200Idx);
+          ctx2.save();
+          ctx2.beginPath();ctx2.moveTo(x2,yAxis.top);ctx2.lineTo(x2,yAxis.bottom);
+          ctx2.lineWidth=2;ctx2.strokeStyle='#b8651a';ctx2.setLineDash([5,4]);ctx2.stroke();ctx2.setLineDash([]);
+          ctx2.fillStyle='#b8651a';ctx2.font='bold 10px sans-serif';ctx2.textAlign='center';
+          ctx2.fillText('Top 200',x2,yAxis.top-4);
+          ctx2.restore();
+        }
       }
     }]
   });
