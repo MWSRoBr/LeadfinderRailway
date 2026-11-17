@@ -99,7 +99,8 @@ var FEIERTAGE_2026 = [
 // Milestones
 var MILESTONES = [
   { nr: 1, datum: '22.06.2026', label: 'Rollout Salesteam', color: '#3d6b1a' },
-  { nr: 2, datum: '20.07.2026', label: 'Firmennamen-Logging & Web-Recherchen aktiv', color: '#2a4a7f' }
+  { nr: 2, datum: '20.07.2026', label: 'Firmennamen-Logging & Web-Recherchen aktiv', color: '#2a4a7f' },
+  { nr: 3, datum: '17.11.2026', label: 'Top 200 online', color: '#b8651a' }
 ];
 
 async function doLogin() {
@@ -171,6 +172,7 @@ function renderDashboard() {
   var logins = _rows.filter(r => r[4] === 'Login');
   var webRecherchen = _rows.filter(r => r[4] === 'Web-Recherche');
   var firmenProfile = _rows.filter(r => r[4] === 'Firmenprofil');
+  var gebietsAufrufe = _rows.filter(r => r[4] === 'Mein Gebiet');
 
   // Unique project and company names
   var allProjNamen = new Set();
@@ -190,20 +192,25 @@ function renderDashboard() {
   var userStats = {};
   searches.forEach(r => {
     var u = r[2];
-    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0};
+    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0, gebiet:0};
     userStats[u].searches++;
     userStats[u].proj += parseNum(r[5]);
     userStats[u].firm += parseNum(r[6]);
   });
   webRecherchen.forEach(r => {
     var u = r[2];
-    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0};
+    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0, gebiet:0};
     userStats[u].detailsProj = (userStats[u].detailsProj||0) + 1;
   });
   firmenProfile.forEach(r => {
     var u = r[2];
-    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0};
+    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0, gebiet:0};
     userStats[u].detailsFirm = (userStats[u].detailsFirm||0) + 1;
+  });
+  gebietsAufrufe.forEach(r => {
+    var u = r[2];
+    if (!userStats[u]) userStats[u] = {searches:0, proj:0, firm:0, detailsProj:0, detailsFirm:0, gebiet:0};
+    userStats[u].gebiet = (userStats[u].gebiet||0) + 1;
   });
 
   var loggedIn = [...new Set(logins.map(r => r[2]))];
@@ -270,6 +277,7 @@ function renderDashboard() {
           <th style="text-align:right">Firm.</th>
           <th style="text-align:right">Bauprojekt-Rec.</th>
           <th style="text-align:right">Firmen-Rec.</th>
+          <th style="text-align:right">Mein Gebiet</th>
         </tr>
         ${allUsers.map(u => {
           var s = userStats[u];
@@ -287,6 +295,7 @@ function renderDashboard() {
             <td style="text-align:right">${s ? s.firm : '–'}</td>
             <td style="text-align:right">${s && s.detailsProj ? s.detailsProj : '–'}</td>
             <td style="text-align:right">${s && s.detailsFirm ? s.detailsFirm : '–'}</td>
+            <td style="text-align:right">${s && s.gebiet ? s.gebiet : '–'}</td>
           </tr>`;
         }).join('')}
       </table>
