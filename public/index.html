@@ -235,7 +235,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
       Aus deinem PLZ-Bereich werden 7 Städte ausgewählt: die 2 größten, die 2 wirtschaftsstärksten und 3 zufällig gezogene — für breite regionale Abdeckung. Städte lassen sich vor der Suche entfernen oder ersetzen.<br><br>
       Du wählst, wonach gesucht wird:<br><br>
       <strong style="color:var(--text)">Bauprojekte</strong> in drei Größen — von kleinen Objekten (Praxen, Kanzleien) über mittlere Firmensitze bis zu großen Konzern- und Behördenbauten. Gesucht wird nach Baugenehmigungen, Grundsteinlegungen, Richtfesten und Projektankündigungen, sortiert nach Fertigstellung (dringendste zuerst). Bürofläche und Arbeitsplätze werden, wo verfügbar, automatisch ergänzt.<br><br>
-      <strong style="color:var(--text)">Möbel-Ausschreibungen</strong> — laufende Ausschreibungen und Rahmenverträge für Büromöbel und Einrichtung, also Projekte kurz vor der Beschaffung.<br><br>
       Parallel sucht das Tool <strong style="color:var(--text)">wachsende Unternehmen</strong> — inhabergeführte Firmen mit konkreten Expansionssignalen der letzten 12 Monate: Umzüge, neue Standorte, Einweihungen, Stellenaufbau, Investitionen.<br><br>
       Du bekommst jeweils bis zu 6 Ergebnisse.<br><br>
       <span style="color:var(--black);font-size:16px;font-weight:700">Alle Ergebnisse sind KI-generiert. Quellen immer selbst prüfen.</span>
@@ -281,8 +280,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
         <button class="groesse-btn active" id="gKlein" onclick="setGroesse('klein')">Klein</button>
         <button class="groesse-btn" id="gMittel" onclick="setGroesse('mittel')">Mittel</button>
         <button class="groesse-btn" id="gGross" onclick="setGroesse('gross')">Groß</button>
-        <div class="groesse-sep"></div>
-        <button class="groesse-btn" id="gMoebel" onclick="setGroesse('moebel')">Möbel-Ausschreibungen</button>
       </div>
       <div class="groesse-hint" id="groesseHint"></div>
     </div>
@@ -314,7 +311,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v40 · Dashboard v7
+  Server <span id="vServer">…</span> · Index v41 · Dashboard v7
 </div>
 
 <script>
@@ -329,15 +326,13 @@ var currentGroesse='klein';
 var groesseTexte={
   klein:'<strong>Klein:</strong> Kleinere Unternehmen wie Anwaltskanzleien, Arztpraxen oder kleine Büros. Ca. bis 20 Mitarbeiter, meist inhabergeführt.',
   mittel:'<strong>Mittel:</strong> Mittelständische Firmen mit eigenem Bürogebäude. Ca. 20 bis 50 Mitarbeiter.',
-  gross:'<strong>Groß:</strong> Große, oft national tätige Unternehmen, Konzernzentralen, Behörden oder Hochschulen. Ca. ab 50 Mitarbeiter.',
-  moebel:'<strong>Möbel-Ausschreibungen:</strong> Laufende Ausschreibungen und Rahmenverträge für Büromöbel und Einrichtung – Projekte kurz vor der Möbelbeschaffung.'
+  gross:'<strong>Groß:</strong> Große, oft national tätige Unternehmen, Konzernzentralen, Behörden oder Hochschulen. Ca. ab 50 Mitarbeiter.'
 };
 function setGroesse(g){
   currentGroesse=g;
   document.getElementById('gKlein').classList.toggle('active', g==='klein');
   document.getElementById('gMittel').classList.toggle('active', g==='mittel');
   document.getElementById('gGross').classList.toggle('active', g==='gross');
-  document.getElementById('gMoebel').classList.toggle('active', g==='moebel');
   document.getElementById('groesseHint').innerHTML=groesseTexte[g]||'';
 }
 var searchCities=[], extraCities=[];
