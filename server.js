@@ -1,10 +1,19 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v35';
+const SERVER_VERSION = 'v36';
+
+
+// ── VERTRIEBS-DASHBOARD: Ranking-Daten (nur serverseitig, nie im Quelltext) ──
+let VERTRIEB_DATA = [];
+try {
+  VERTRIEB_DATA = JSON.parse(fs.readFileSync(path.join(__dirname, 'ranking2026_lyreco.json'), 'utf8'));
+  console.log('Vertrieb-Ranking geladen:', VERTRIEB_DATA.length, 'Firmen');
+} catch (e) { console.log('Ranking-Datei fehlt/fehlerhaft:', e.message); }
 
 // ── NUTZER & PASSWÖRTER ────────────────────────────────────────
 const USERS = {
@@ -1053,6 +1062,59 @@ app.post('/api/stats-data', async (req, res) => {
     return res.json({ tage, rollout: dayKey(ROLLOUT_DATE) });
   } catch(e) {
     return res.json({ error: e.message });
+  }
+});
+
+// ── VERTRIEBS-DASHBOARD ────────────────────────────────────────
+app.get('/vertrieb', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'vertrieb.html'));
+});
+
+// Geschützte Datenauslieferung: nur mit gültigem Leadfinder-Passwort
+app.post('/api/vertrieb-data', (req, res) => {
+  const { password } = req.body;
+  if (!USERS[password]) return res.json({ error: 'Kein Zugang.' });
+  res.json({ firmen: VERTRIEB_DATA });
+});
+
+// Firmen-Scan: pro ausgewählter Firma gezielte Suche nach Bau-/Standort-Signalen
+app.post('/api/scan-firmen', async (req, res) => {
+  const { password, firmen } = req.body;
+  const nutzer = USERS[password];
+  if (!nutzer) return res.json({ error: 'Kein Zugang.' });
+  const apiKey = ANTHROPIC_KEY;
+  if (!apiKey || !Array.isArray(firmen) || !firmen.length) return res.json({ ergebnisse: [] });
+  const liste = firmen.slice(0, 6).map(f => typeof f === 'string' ? { name: f } : f).filter(f => f.name);
+
+  const now = new Date();
+  const y1 = now.getFullYear(), y2 = y1 + 1;
+  try {
+    // Pro Firma eine gezielte Suche (Neubau, Erweiterung, neuer Standort, Umzug)
+    const roh = await Promise.all(liste.map(async (f) => {
+      const q = `"${f.name}" Neubau OR Erweiterung OR "neuer Standort" OR Umzug OR Bürogebäude ${y1} ${y2}`;
+      const r = await braveSearch(q, 4).catch(() => []);
+      const text = (r || []).map(x => `[${x.title || ''}](${x.url || ''})\n${x.description || ''}`).join('\n\n');
+      return { name: f.name, text };
+    }));
+
+    // Eine Sonnet-Auswertung für alle Firmen zusammen (kostensparend)
+    const input = roh.map((x, i) => `FIRMA ${i + 1}: ${x.name}\nTreffer:\n${x.text || '(keine Treffer)'}`).join('\n\n===\n\n');
+    const jsonText = await claudeSonnet(apiKey,
+      `Du bekommst Suchtreffer zu mehreren Firmen. Pro Firma: Gibt es ein konkretes, aktuelles Signal für Bauprojekt, Gebäude-Erweiterung, neuen Standort oder Umzug? NUR echte, belegte Fakten aus den Treffern, keine Spekulation. Gib NUR ein JSON-Array zurück, ein Objekt pro Firma in gleicher Reihenfolge: {"name":"...","signal":"ein Satz oder leer wenn nichts Konkretes","quelleUrl":"URL des Belegs oder leer"}.`,
+      input,
+      2000
+    );
+    let ergebnisse = [];
+    const s = jsonText.indexOf('['), e = jsonText.lastIndexOf(']');
+    if (s >= 0 && e > s) { try { ergebnisse = JSON.parse(jsonText.substring(s, e + 1)); } catch (err) { console.log('Scan parse error:', err.message); } }
+    // Sicherstellen: jede angefragte Firma kommt vor
+    const byName = {}; ergebnisse.forEach(r => { if (r && r.name) byName[r.name.toLowerCase()] = r; });
+    const final = liste.map(f => byName[f.name.toLowerCase()] || { name: f.name, signal: '', quelleUrl: '' });
+    console.log('Firmen-Scan von', nutzer, '-', final.length, 'Firmen');
+    res.json({ ergebnisse: final });
+  } catch (e) {
+    console.log('Scan fehlgeschlagen:', e.message);
+    res.json({ error: e.message, ergebnisse: [] });
   }
 });
 
