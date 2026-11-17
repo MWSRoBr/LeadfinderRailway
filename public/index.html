@@ -243,7 +243,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
   </div>
   <div id="startChoice" class="start-choice">
     <button class="sc-btn" id="btnSuchen" onclick="chooseSuchen()">Suchen</button>
-    <button class="sc-btn sc-btn-alt" id="btnGebiet" onclick="location.href='/vertrieb'">Mein Gebiet</button>
+    <button class="sc-btn sc-btn-alt" id="btnGebiet" onclick="openGebiet()">Mein Gebiet</button>
   </div>
   <div id="searchFlow" style="display:none">
   <div class="step active" id="step1">
@@ -314,7 +314,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--white);color:va
 </div>
 
 <div id="versionFooter" style="text-align:center;padding:24px 16px 32px;font-size:11px;color:#b0aca4;font-family:'DM Sans',sans-serif">
-  Server <span id="vServer">…</span> · Index v39 · Dashboard v6
+  Server <span id="vServer">…</span> · Index v40 · Dashboard v7
 </div>
 
 <script>
@@ -1067,6 +1067,11 @@ function escAttr(s){if(!s)return'';return String(s).replace(/\\/g,'\\\\').replac
 function chooseSuchen(){
   var sc=document.getElementById('startChoice'); if(sc) sc.style.display='none';
   var sf=document.getElementById('searchFlow'); if(sf) sf.style.display='block';
+}
+
+function openGebiet(){
+  try{ fetch('/api/log-detail',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({password:_pw,aktion:'Mein Gebiet',name:'–',plz:'–'})}); }catch(e){}
+  location.href='/vertrieb';
 }
 </script>
 </body>
