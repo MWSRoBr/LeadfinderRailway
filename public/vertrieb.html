@@ -141,10 +141,13 @@ tr.det td{background:var(--bg);padding:12px 16px 14px}
 .lykey .ly{cursor:default}
 .foot{margin-top:28px;font-size:.8rem;color:var(--muted);max-width:80ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-.scanres{margin-top:4px;display:grid;gap:6px}
-.sr-item{font-size:.86rem;line-height:1.5;padding:7px 10px;background:var(--surface);border:1px solid var(--line);border-radius:7px}
-.sr-item a{font-weight:600}
-.sr-none{opacity:.6}
+.scanrow td{background:var(--surface);border-top:none;padding:10px 14px}
+.sr-hit{font-size:.86rem;line-height:1.5}
+.sr-tag{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:var(--ink);color:var(--bg);border-radius:5px;padding:1px 7px;margin-right:6px;vertical-align:1px}
+.sr-hit a{font-weight:600}
+.sr-none{font-size:.84rem;opacity:.55}
+.ly-block{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.ly-title{font-size:.78rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted,#666);margin-bottom:8px;display:flex;align-items:center;gap:8px}
 </style>
 
 <div style="max-width:1120px;margin:0 auto;padding:12px 16px 0"><a href="/" style="font-size:.9rem;color:inherit;text-decoration:none;opacity:.7">← Zurück zum Leadfinder</a></div>
@@ -377,9 +380,15 @@ function renderScatter(rows,col){
 }
 
 const ST={aktiv:"Kunde, Umsatz 2026",inaktiv:"Inaktiver Kunde",angelegt:"Angelegt, ohne Umsatz"};
+function lyDetail(d){
+  if(!d.ly) return "";
+  const l=d.ly, r=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
+  const rows=r("Betreuung",l.adm)+r("ADM PSA",l.psa)+r("Generalist",l.gen)+r("International AM",l.iam)+r("Kundennr.",l.kd?l.kd+(l.more?` (+${l.more} weitere)`:""):"")+r("Zuordnung",l.zu);
+  return `<div class="ly-block"><div class="ly-title"><span class="st st-${l.st}">${ST[l.st]}</span> Lyreco-Betreuung</div><dl class="dl">${rows||'<dt>Hinweis</dt><dd>keine Zuständigkeit hinterlegt</dd>'}</dl></div>`;
+}
 function detail(d){
   const i=d.imp||{},row=(k,v)=>v?`<dt>${k}</dt><dd>${v}</dd>`:"";
-  return `<dl class="dl">${row("Firma laut Impressum",esc(i.firma||""))}${row("Anschrift",i.str?esc(i.str)+", "+esc(d.p)+" "+esc(d.s):"")}${row("USt-IdNr.",i.ust?`<span class="num">${esc(i.ust)}</span>`:"")}${row("Handelsregister",esc(i.hr||""))}${row("Impressum",i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))}</a>`:"")}${row("Sitz laut Ranking",d.sr?esc(d.sr):"")}${row("Hinweis",esc(i.hint||""))}${row("Lyreco-Abgleich",d.lyq?"Zuordnung unklar, Prüfkandidat: "+esc(d.lyq):"")}</dl>`;
+  return `<dl class="dl">${row("Firma laut Impressum",esc(i.firma||""))}${row("Anschrift",i.str?esc(i.str)+", "+esc(d.p)+" "+esc(d.s):"")}${row("USt-IdNr.",i.ust?`<span class="num">${esc(i.ust)}</span>`:"")}${row("Handelsregister",esc(i.hr||""))}${row("Impressum",i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))}</a>`:"")}${row("Sitz laut Ranking",d.sr?esc(d.sr):"")}${row("Hinweis",esc(i.hint||""))}${row("Lyreco-Abgleich",d.lyq?"Zuordnung unklar, Prüfkandidat: "+esc(d.lyq):"")}</dl>${lyDetail(d)}`;
 }
 function popHTML(d){
   const l=d.ly,row=(k,v)=>v?`<dt>${k}</dt><dd>${esc(v)}</dd>`:"";
@@ -421,7 +430,7 @@ function renderGroups(rows){
         <td class="rank">${d.r}</td>
         <td><div class="nm"><button type="button" class="fname" aria-expanded="false" aria-controls="det-${d.r}" data-r="${d.r}">${esc(d.n)}</button>${d.ly?`<button type="button" class="ly ly-${d.ly.st}" data-r="${d.r}" aria-haspopup="dialog" aria-label="Lyreco-Betreuung für ${esc(d.n)}">Lyreco</button>`:""}</div><div class="fokus">${esc(d.f)}</div></td>
         <td>${esc(d.s)} <span class="muted num" style="font-size:.8rem">${d.p.length===5?d.p:d.p+"…"}</span>${d.x?`<span class="flag" title="${esc(d.x)}">PLZ?</span>`:""}</td>
-        <td class="r num">${fmtT(d.u)}</td><td class="r num">${fmtPct(d.g)}</td><td class="r num">${fmtPct(d.e)}</td></tr><tr class="det" id="det-${d.r}" hidden><td colspan="${many?7:6}">${detail(d)}</td></tr>`).join("")}
+        <td class="r num">${fmtT(d.u)}</td><td class="r num">${fmtPct(d.g)}</td><td class="r num">${fmtPct(d.e)}</td></tr><tr class="det" id="det-${d.r}" hidden><td colspan="${many?7:6}">${detail(d)}</td></tr><tr class="scanrow" id="scan-${d.r}" data-n="${esc(d.n)}" hidden><td colspan="${many?7:6}"></td></tr>`).join("")}
       </tbody></table></div><p class="msg" hidden></p></div>`}).join("");
   document.querySelectorAll(".group").forEach(syncGroup);
 }
@@ -443,21 +452,27 @@ $("#groups").addEventListener("click",e=>{
   const m=grp.querySelector(".msg");m.hidden=false;
   let pw=''; try{pw=localStorage.getItem('mw_lf_pw')||'';}catch(_){}
   if(!pw){location.href='/';return;}
-  btn.disabled=true; const cnt=btn.querySelector(".cnt"); const label=btn.childNodes[0];
-  m.innerHTML='<span class="muted">Scan läuft – '+names.length+' Firma'+(names.length===1?'':'en')+', bitte 15–30 Sek. warten…</span>';
-  fetch('/api/scan-firmen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,firmen:names})})
+  // Angereicherte Firmenobjekte (Rang, Rechtsname, Ort) für treffsichere Suche
+  const firmen=names.map(nm=>{const d=DATA.find(z=>z.n===nm)||{};return {name:nm,r:d.r,firma:(d.imp&&d.imp.firma)||nm,ort:d.s||''};});
+  // Ergebniszeilen der betroffenen Firmen vorbereiten
+  firmen.forEach(f=>{const row=grp.querySelector('#scan-'+f.r);if(row){const td=row.querySelector('td');td.innerHTML='<span class="muted">Suche läuft…</span>';row.hidden=false;}});
+  btn.disabled=true;
+  m.innerHTML='<span class="muted">Scan läuft – '+firmen.length+' Firma'+(firmen.length===1?'':'en')+', bitte 15–30 Sek. warten…</span>';
+  fetch('/api/scan-firmen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,firmen:firmen})})
     .then(r=>r.json())
     .then(res=>{
-      btn.disabled=false;
-      if(!res||res.error||!Array.isArray(res.ergebnisse)){m.innerHTML='<span class="muted">Scan fehlgeschlagen. Bitte erneut versuchen.</span>';return;}
-      m.innerHTML='<div class="scanres">'+res.ergebnisse.map(x=>{
-        const sig=(x.signal||'').trim();
-        const url=(x.quelleUrl||'').trim();
-        if(sig) return '<div class="sr-item"><b>'+esc(x.name)+'</b> – '+esc(sig)+(url&&url.indexOf('http')===0?' <a href="'+esc(url)+'" target="_blank" rel="noopener">Quelle ↗</a>':'')+'</div>';
-        return '<div class="sr-item sr-none"><b>'+esc(x.name)+'</b> – kein aktuelles Signal gefunden</div>';
-      }).join('')+'</div>';
+      btn.disabled=false; m.hidden=true; m.innerHTML='';
+      if(!res||res.error||!Array.isArray(res.ergebnisse)){m.hidden=false;m.innerHTML='<span class="muted">Scan fehlgeschlagen. Bitte erneut versuchen.</span>';return;}
+      res.ergebnisse.forEach(x=>{
+        const f=firmen.find(z=>z.name===x.name)||{};
+        const row=grp.querySelector('#scan-'+f.r); if(!row)return;
+        const td=row.querySelector('td'); row.hidden=false;
+        const sig=(x.signal||'').trim(), url=(x.quelleUrl||'').trim();
+        if(sig) td.innerHTML='<div class="sr-hit"><span class="sr-tag">Signal</span> '+esc(sig)+(url&&url.indexOf('http')===0?' <a href="'+esc(url)+'" target="_blank" rel="noopener">Quelle ↗</a>':'')+'</div>';
+        else td.innerHTML='<div class="sr-none">Kein aktuelles Signal gefunden</div>';
+      });
     })
-    .catch(()=>{btn.disabled=false;m.innerHTML='<span class="muted">Scan fehlgeschlagen. Bitte erneut versuchen.</span>';});
+    .catch(()=>{btn.disabled=false;m.hidden=false;m.innerHTML='<span class="muted">Scan fehlgeschlagen. Bitte erneut versuchen.</span>';});
 });
 
 // ── Daten geschützt nachladen (Kundendaten nicht im Quelltext) ──
