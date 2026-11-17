@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FIRECRAWL_KEY = process.env.FIRECRAWL_KEY;
 const ANTHROPIC_KEY = process.env.API_Anthropic;
-const SERVER_VERSION = 'v36';
+const SERVER_VERSION = 'v37';
 
 
 // ── VERTRIEBS-DASHBOARD: Ranking-Daten (nur serverseitig, nie im Quelltext) ──
@@ -1091,8 +1091,10 @@ app.post('/api/scan-firmen', async (req, res) => {
   try {
     // Pro Firma eine gezielte Suche (Neubau, Erweiterung, neuer Standort, Umzug)
     const roh = await Promise.all(liste.map(async (f) => {
-      const q = `"${f.name}" Neubau OR Erweiterung OR "neuer Standort" OR Umzug OR Bürogebäude ${y1} ${y2}`;
-      const r = await braveSearch(q, 4).catch(() => []);
+      const suchname = f.firma || f.name;
+      const ort = f.ort ? ' ' + f.ort : '';
+      const q = `${suchname}${ort} Neubau Erweiterung Bauprojekt neuer Standort Umzug Richtfest Investition ${y1} ${y2}`;
+      const r = await braveSearch(q, 6).catch(() => []);
       const text = (r || []).map(x => `[${x.title || ''}](${x.url || ''})\n${x.description || ''}`).join('\n\n');
       return { name: f.name, text };
     }));
