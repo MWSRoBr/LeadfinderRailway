@@ -424,7 +424,7 @@ function renderGroups(rows){
     const list=g[b].sort((x,y)=>x.r-y.r), many=list.length>6;
     return `<div class="group" data-g="${gi}">
       <div class="ghead"><div><h3>${esc(b)}</h3><span class="meta">${list.length} ${list.length===1?"Firma":"Firmen"}${many?" · bis zu 6 auswählen":""}</span></div>
-        <button class="scan" type="button" data-g="${gi}">Branche scannen (<span class="cnt">${Math.min(6,list.length)}</span>)</button></div>
+        <button class="scan" type="button" data-g="${gi}">Erweiterte Informationen (<span class="cnt">${Math.min(6,list.length)}</span>)</button></div>
       <div class="tbl"><table><thead><tr>${many?'<th class="c"></th>':""}<th>Rang</th><th>Unternehmen</th><th>Sitz</th><th class="r">Umsatz Tsd. €</th><th class="r">Wachstum</th><th class="r">Marge</th></tr></thead><tbody>
       ${list.map((d,i)=>`<tr class="frow">${many?`<td class="c"><input type="checkbox" id="cb-${d.r}" data-n="${esc(d.n)}" aria-label="${esc(d.n)} für Scan auswählen" ${i<6?"checked":""}></td>`:""}
         <td class="rank">${d.r}</td>
